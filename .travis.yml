@@ -1,0 +1,7 @@
+addons:
+  apt:
+    sources:
+      - sourceline: 'ppa:jgross-h/many-coq-versions'
+    packages:
+      - coq-8.7.0
+script: make
