@@ -4,3 +4,8 @@ all clean: CoqMakefile
 
 CoqMakefile: _CoqProject
 	coq_makefile -f $< -o $@
+
+.PHONY: docker
+docker:
+	docker build -t coq-hack .
+	docker run -t coq-hack clean all
