@@ -120,8 +120,30 @@ Definition translation(f g:nat -> nat)(n: nat) := forall x, f (x + n) = g x.
 Lemma translate: forall f n, exists g, translation f g n.
 Admitted.
 
-Lemma arith_lemma: forall n x y, n + x <= y -> (n <= y - x) /\ (y = y - x + x).
-Admitted.
+Lemma arith_lemma_1: forall n x y, n + x <= y -> n <= y - x.
+Proof.
+  intros n x y H.
+  assert (x <= y).
+  - pose (p := Nat.add_le_mono 0 n x x (le_0_n _) (le_n _)).
+    Nat.order.
+  - assert (y = y - x + x) as H1.
+    + symmetry.
+      exact (Nat.sub_add x y H0).
+    + rewrite H1 in H.
+      rewrite (Nat.add_comm n x) in H.
+      rewrite (Nat.add_comm (y - x) x) in H.
+      exact (proj2 (Nat.add_le_mono_l n (y-x) x) H).
+Qed.
+
+Lemma arith_lemma_2: forall n x y, n + x <= y -> y = y - x + x.
+Proof.
+  intros n x y H.
+  assert (x <= y) as H0.
+  - pose (p := Nat.add_le_mono 0 n x x (le_0_n _) (le_n _)).
+    Nat.order.
+  - symmetry.
+    exact (Nat.sub_add x y H0).
+Qed.
 
 Lemma decr_translation: forall f g n, decr f -> translation f g n -> decr g.
 Admitted.
@@ -159,12 +181,11 @@ Proof.
          ++ destruct (IHm f' D' f'Bm) as [n pn].
             refine (ex_intro _ (n + x) _).
             intros y I.
-            destruct (arith_lemma _ _ _ I) as [H0 H1].
             rewrite (tr n).
-            rewrite <- (pn (y - x) H0).
+            rewrite <- (pn (y - x) (arith_lemma_1 _ _ _ I)).
             rewrite <- (tr (y - x)).
             apply f_equal_nat.
-            assumption.
+            exact (arith_lemma_2 _ _ _ I).
      + intros F.
        refine (ex_intro _ 0 _).
        unfold infvalley.
