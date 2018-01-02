@@ -118,7 +118,12 @@ Qed.
 Definition translation(f g:nat -> nat)(n: nat) := forall x, f (x + n) = g x.
 
 Lemma translate: forall f n, exists g, translation f g n.
-Admitted.
+Proof.
+  intros f n.
+  refine (ex_intro _ (fun x => f (x + n)) _).
+  intro x.
+  trivial.
+Qed.
 
 Lemma arith_lemma_1: forall n x y, n + x <= y -> n <= y - x.
 Proof.
@@ -146,7 +151,13 @@ Proof.
 Qed.
 
 Lemma decr_translation: forall f g n, decr f -> translation f g n -> decr g.
-Admitted.
+Proof.
+  intros f g n D tr x.
+  unfold decr.
+  rewrite <- (tr (S x)).
+  rewrite <- (tr x).
+  exact (D (x + n)).
+Qed.
 
 Lemma LPO_infvalley_aux:
   LPO -> forall m f, decr f ->
