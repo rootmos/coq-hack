@@ -38,6 +38,12 @@ Proof.
     discriminate.
 Qed.
 
+Fixpoint aux (f: nat -> bool) (n: nat): nat :=
+  if f n then 0 else match n with
+  | 0 => if f n then 0 else 1
+  | S m => aux f m
+  end.
+
 Lemma infvalley_LPO_aux:
   forall f: nat -> bool, exists g: nat -> nat,
   (forall n,
@@ -46,9 +52,32 @@ Lemma infvalley_LPO_aux:
   /\ decr g.
 Proof.
   intro f.
-  refine (ex_intro _ (fun n => (* TODO *) n) _).
+  refine (ex_intro _ (aux f) _).
   split.
-  + admit.
+  + induction n.
+    - case_eq (f 0).
+      -- intro H. compute. rewrite H. right.
+         refine (conj (eq_refl _) _).
+         refine (ex_intro _ 0 _).
+         assumption.
+      -- intro H. compute. rewrite H. left.
+         refine (conj (eq_refl _) _).
+         intros x G.
+         rewrite (proj1 (Nat.le_0_r _) G).
+         assumption.
+    - case_eq (f (S n)).
+      -- intro H. compute. rewrite H. right.
+         refine (conj (eq_refl _) _).
+         refine (ex_intro _ (S n) _).
+         assumption.
+      -- intro H. compute. rewrite H. fold aux.
+         case (IHn).
+         ++ intro G. left. destruct G as [G0 G1]. refine (conj G0 _).
+            intros x F.
+            case (Arith.leq_and_not _ _ F).
+            +++ intro I. rewrite I. assumption.
+            +++ intro I. exact (G1 _ I).
+         ++ apply (or_intror).
   + admit.
 Admitted.
 
