@@ -11,33 +11,6 @@ Definition LPO :=
 
 Definition infvalley(f : nat -> nat)(x : nat) := forall y, x <= y -> f y = f x.
 
-Lemma f_bool_to_nat:
-  forall f: nat -> bool, exists g: nat -> nat,
-  forall n, (f n = true /\ g n = 1) \/ (f n = false /\ g n = 0).
-Proof.
-  intro f.
-  refine (ex_intro _ (fun n => if f n then 1 else 0) _).
-  intro n.
-  case (f n). +auto. +auto.
-Qed.
-
-Definition f_has_a_true(f: nat -> bool) := exists x, f x = true.
-Definition f_false(f: nat -> bool) := forall x, f x = false.
-
-Lemma LPO_disjoint f:
-  (f_has_a_true f -> ~ f_false f) /\ (f_false f -> ~ f_has_a_true f).
-Proof.
-  split.
-  + intros H G.
-    destruct H as [x px].
-    rewrite (G x) in px.
-    discriminate.
-  + intros H G.
-    destruct G as [x px].
-    rewrite (H x) in px.
-    discriminate.
-Qed.
-
 Fixpoint aux (f: nat -> bool) (n: nat): nat :=
   if f n then 0 else match n with
   | 0 => if f n then 0 else 1
@@ -66,8 +39,8 @@ Proof.
        refine (conj (eq_refl _) _).
        refine (ex_intro _ (S n) _).
        assumption.
-    -- intro H. compute. rewrite H. fold aux.
-       case (IHn).
+    -- intro H. compute. rewrite H.
+       case IHn.
        ++ intro G. left. destruct G as [G0 G1].
           refine (conj G0 _).
           intros x F.
@@ -202,14 +175,14 @@ Proof.
        intros y _.
        transitivity (S m).
        - case (pg y).
-         * apply (proj1).
+         * apply proj1.
          * intro H.
            pose (q := F y).
            rewrite (proj2 H) in q.
            discriminate.
        - symmetry.
          case (pg 0).
-         * apply (proj1).
+         * apply proj1.
          * intro H.
            pose (q := F 0).
            rewrite (proj2 H) in q.
