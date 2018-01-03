@@ -5,3 +5,4 @@
 CoqMakefile
 *.aux
 *.v.d
+*.conf

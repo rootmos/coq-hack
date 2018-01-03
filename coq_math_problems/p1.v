@@ -1,74 +1,10 @@
 (* https://coq-math-problems.github.io/Problem1/ *)
 
-Definition decr (f: nat -> nat) := forall n, f (S n) <= f n.
-
 Require Import PeanoNat.
 
-Definition bounded_by (f: nat -> nat) (n: nat) := forall x, f x <= n.
-Definition bounded (f: nat -> nat) := exists n, bounded_by f n.
-
-Theorem decr_is_bounded: forall f, decr f -> bounded f.
-Proof.
-  intros.
-  refine (ex_intro _ (f 0) _).
-  unfold bounded_by.
-  induction x.
-  - exact (le_n (f 0)).
-  - pose (p := H x).
-    Nat.order.
-Qed.
-
-Lemma leq_and_not: forall x y, x <= S y -> x = S y \/ x <= y.
-Proof.
-  intro x.
-  case x.
-  + right.
-    exact (le_0_n _).
-  + intros n y H.
-    case (le_S_n _ _ H).
-    - left.
-      reflexivity.
-    - right.
-      apply le_n_S.
-      assumption.
-Qed.
-
-Lemma leq_and_not': forall x y, x <= S y -> x <> S y -> x <= y.
-Proof.
-  intros x y H.
-  case (leq_and_not _ _ H).
-  - contradiction.
-  - intros.
-    assumption.
-Qed.
-
-Lemma leq_and_not'': forall x y, x <= y -> x <> y -> x <= pred y.
-Proof.
-  intro x.
-  induction y.
-  - intros H H0.
-    pose (p := proj1 (Nat.le_0_r x) H).
-    contradiction.
-  - apply leq_and_not'.
-Qed.
-
-Theorem decr_estimate: forall f, decr f -> forall x y, x <= y -> f y <= f x.
-Proof.
-  intros f D x.
-  induction y.
-  + intro.
-    rewrite (proj1 (Nat.le_0_r _) H).
-    apply le_n.
-  + intro.
-    case (Nat.eq_dec x (S y)).
-    - intro.
-      rewrite e.
-      apply le_n.
-    - intro.
-      pose (p := IHy (leq_and_not' _ _ H n)).
-      pose (q := D y).
-      Nat.order.
-Qed.
+Require Import CMP.Decr.
+Require Import CMP.Bounded.
+Require CMP.Arith.
 
 Definition eventually_bounded_by_at (f: nat -> nat) (n: nat) (x: nat)
   := forall y, x <= y -> f y <= n.
@@ -121,7 +57,7 @@ Proof.
     intros y G0 G1.
     assert (x + S n = S (x + n)). { apply eq_sym; trivial. }
     rewrite H2 in G1.
-    case (leq_and_not _ _ G1).
+    case (Arith.leq_and_not _ _ G1).
     - intro.
       rewrite H3.
       rewrite <- H2.
@@ -139,7 +75,7 @@ Proof.
     rewrite H0 in p.
     pose (q := decr_estimate _ H _ _ (proj1 (Nat.add_le_mono_l _ _ x) (le_S n n (le_n _)))).
     rewrite p in q.
-    exact (Nat.le_trans _ _ _ (decr_estimate _ H _ _ H2) (leq_and_not'' _ _ q n0)).
+    exact (Nat.le_trans _ _ _ (decr_estimate _ H _ _ H2) (Arith.leq_and_not'' _ _ q n0)).
 Qed.
 
 Lemma decr_and_eventually_bounded_by:

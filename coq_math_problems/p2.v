@@ -1,10 +1,13 @@
 Require Import PeanoNat.
 
+Require CMP.Arith.
+Require Import CMP.Decr.
+Require Import CMP.Translation.
+
 Definition LPO :=
   forall f : nat -> bool,
   (exists x, f x = true) \/ (forall x, f x = false).
 
-Definition decr(f : nat -> nat) := forall n, f (S n) <= f n.
 Definition infvalley(f : nat -> nat)(x : nat) := forall y, x <= y -> f y = f x.
 
 Lemma f_bool_to_nat:
@@ -59,48 +62,6 @@ Proof.
     - trivial.
 Qed.
 
-(* TODO: extract and make a small common lib *)
-Lemma leq_and_not: forall x y, x <= S y -> x = S y \/ x <= y.
-Proof.
-  intro x.
-  case x.
-  + right.
-    exact (le_0_n _).
-  + intros n y H.
-    case (le_S_n _ _ H).
-    - left.
-      reflexivity.
-    - right.
-      apply le_n_S.
-      assumption.
-Qed.
-
-Lemma leq_and_not': forall x y, x <= S y -> x <> S y -> x <= y.
-Proof.
-  intros x y H.
-  case (leq_and_not _ _ H).
-  - contradiction.
-  - intros.
-    assumption.
-Qed.
-
-Theorem decr_estimate: forall f, decr f -> forall x y, x <= y -> f y <= f x.
-Proof.
-  intros f D x.
-  induction y.
-  + intro.
-    rewrite (proj1 (Nat.le_0_r _) H).
-    apply le_n.
-  + intro.
-    case (Nat.eq_dec x (S y)).
-    - intro.
-      rewrite e.
-      apply le_n.
-    - intro.
-      pose (p := IHy (leq_and_not' _ _ H n)).
-      pose (q := D y).
-      Nat.order.
-Qed.
 
 Lemma infvalley_if_bounded_by_0: forall f,
   (forall x, f x <= 0) -> exists x, infvalley f x.
@@ -113,50 +74,6 @@ Proof.
   - exact (proj1 (Nat.le_0_r _) (B0 y)).
   - symmetry.
     exact (proj1 (Nat.le_0_r _) (B0 0)).
-Qed.
-
-Definition translation(f g:nat -> nat)(n: nat) := forall x, f (x + n) = g x.
-
-Lemma translate: forall f n, exists g, translation f g n.
-Proof.
-  intros f n.
-  refine (ex_intro _ (fun x => f (x + n)) _).
-  intro x.
-  trivial.
-Qed.
-
-Lemma arith_lemma_1: forall n x y, n + x <= y -> n <= y - x.
-Proof.
-  intros n x y H.
-  assert (x <= y).
-  - pose (p := Nat.add_le_mono 0 n x x (le_0_n _) (le_n _)).
-    Nat.order.
-  - assert (y = y - x + x) as H1.
-    + symmetry.
-      exact (Nat.sub_add x y H0).
-    + rewrite H1 in H.
-      rewrite (Nat.add_comm n x) in H.
-      rewrite (Nat.add_comm (y - x) x) in H.
-      exact (proj2 (Nat.add_le_mono_l n (y-x) x) H).
-Qed.
-
-Lemma arith_lemma_2: forall n x y, n + x <= y -> y = y - x + x.
-Proof.
-  intros n x y H.
-  assert (x <= y) as H0.
-  - pose (p := Nat.add_le_mono 0 n x x (le_0_n _) (le_n _)).
-    Nat.order.
-  - symmetry.
-    exact (Nat.sub_add x y H0).
-Qed.
-
-Lemma decr_translation: forall f g n, decr f -> translation f g n -> decr g.
-Proof.
-  intros f g n D tr x.
-  unfold decr.
-  rewrite <- (tr (S x)).
-  rewrite <- (tr x).
-  exact (D (x + n)).
 Qed.
 
 Lemma LPO_infvalley_aux:
@@ -180,7 +97,7 @@ Proof.
          discriminate.
        - intro H.
          destruct H as [G _].
-         pose (q := leq_and_not' _ _ (BSm x) G).
+         pose (q := Arith.leq_and_not' _ _ (BSm x) G).
          destruct (translate f x) as [f' tr].
          pose (D' := decr_translation f f' x D tr).
          assert (forall y, f' y <= m) as f'Bm.
@@ -193,10 +110,10 @@ Proof.
             refine (ex_intro _ (n + x) _).
             intros y I.
             rewrite (tr n).
-            rewrite <- (pn (y - x) (arith_lemma_1 _ _ _ I)).
+            rewrite <- (pn (y - x) (Arith.le_sub _ _ _ I)).
             rewrite <- (tr (y - x)).
             apply f_equal_nat.
-            exact (arith_lemma_2 _ _ _ I).
+            exact (Arith.le_sub_ident _ _ _ I).
      + intros F.
        refine (ex_intro _ 0 _).
        unfold infvalley.
