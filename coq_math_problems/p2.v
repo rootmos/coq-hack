@@ -44,58 +44,61 @@ Fixpoint aux (f: nat -> bool) (n: nat): nat :=
   | S m => aux f m
   end.
 
-Lemma infvalley_LPO_aux:
-  forall f: nat -> bool, exists g: nat -> nat,
-  (forall n,
-    (g n = 1 /\ (forall x, x <= n -> f x = false))
-    \/ (g n = 0 /\ (exists x, f x = true)))
-  /\ decr g.
+Lemma infvalley_LPO_aux_prop: forall f: nat -> bool,
+  forall n,
+  (aux f n = 1 /\ (forall x, x <= n -> f x = false))
+  \/ (aux f n = 0 /\ (exists x, f x = true)).
 Proof.
   intro f.
-  refine (ex_intro _ (aux f) _).
-  split.
-  + induction n.
-    - case_eq (f 0).
-      -- intro H. compute. rewrite H. right.
-         refine (conj (eq_refl _) _).
-         refine (ex_intro _ 0 _).
-         assumption.
-      -- intro H. compute. rewrite H. left.
-         refine (conj (eq_refl _) _).
-         intros x G.
-         rewrite (proj1 (Nat.le_0_r _) G).
-         assumption.
-    - case_eq (f (S n)).
-      -- intro H. compute. rewrite H. right.
-         refine (conj (eq_refl _) _).
-         refine (ex_intro _ (S n) _).
-         assumption.
-      -- intro H. compute. rewrite H. fold aux.
-         case (IHn).
-         ++ intro G. left. destruct G as [G0 G1]. refine (conj G0 _).
-            intros x F.
-            case (Arith.leq_and_not _ _ F).
-            +++ intro I. rewrite I. assumption.
-            +++ intro I. exact (G1 _ I).
-         ++ apply (or_intror).
-  + admit.
-Admitted.
+  induction n.
+  - case_eq (f 0).
+    -- intro H. compute. rewrite H. right.
+       refine (conj (eq_refl _) _).
+       refine (ex_intro _ 0 _).
+       assumption.
+    -- intro H. compute. rewrite H. left.
+       refine (conj (eq_refl _) _).
+       intros x G.
+       rewrite (proj1 (Nat.le_0_r _) G).
+       assumption.
+  - case_eq (f (S n)).
+    -- intro H. compute. rewrite H. right.
+       refine (conj (eq_refl _) _).
+       refine (ex_intro _ (S n) _).
+       assumption.
+    -- intro H. compute. rewrite H. fold aux.
+       case (IHn).
+       ++ intro G. left. destruct G as [G0 G1].
+          refine (conj G0 _).
+          intros x F.
+          case (Arith.leq_and_not _ _ F).
+          +++ intro I. rewrite I. assumption.
+          +++ exact (G1 x).
+       ++ apply or_intror.
+Qed.
+
+Lemma infvalley_LPO_aux_decr: forall f, decr (aux f).
+Proof.
+  intros f n.
+  compute.
+  case (f (S n)).
+  - exact (le_0_n _).
+  - exact (le_n _).
+Qed.
 
 Theorem infvalley_LPO : (forall f, decr f -> exists x, infvalley f x) -> LPO.
 Proof.
   intro H.
   intro f.
-  destruct (infvalley_LPO_aux f) as [g pg].
-  destruct pg as [p Dg].
-  destruct (H g Dg) as [n pn].
-  case_eq (g n =? 1).
+  destruct (H (aux f) (infvalley_LPO_aux_decr f)) as [n pn].
+  case_eq (aux f n =? 1).
   + intro G1.
     right.
     intro x.
     unfold infvalley in pn.
     case_eq (le_ge_dec x n).
     -- intros l _.
-       case (p n).
+       case (infvalley_LPO_aux_prop f n).
        ++ intro F.
           destruct F as [_ F].
           exact (F x l).
@@ -104,7 +107,7 @@ Proof.
           rewrite (proj1 (Nat.eqb_eq _ _) G1) in F.
           discriminate.
     -- intros ge _.
-       case (p x).
+       case (infvalley_LPO_aux_prop f x).
        ++ intro F.
           destruct F as [_ F].
           exact (F x (le_n _)).
@@ -115,7 +118,7 @@ Proof.
           discriminate.
   + intro Gn1.
     left.
-    case (p n).
+    case (infvalley_LPO_aux_prop f n).
     -- intro F.
        destruct F as [F _].
        rewrite (proj2 (Nat.eqb_eq _ _) F) in Gn1.
