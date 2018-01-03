@@ -1,4 +1,5 @@
 Require Import PeanoNat.
+Require Import Arith.Compare_dec.
 
 Require CMP.Arith.
 Require Import CMP.Decr.
@@ -37,9 +38,63 @@ Proof.
     discriminate.
 Qed.
 
+Lemma infvalley_LPO_aux:
+  forall f: nat -> bool, exists g: nat -> nat,
+  (forall n,
+    (g n = 1 /\ (forall x, x <= n -> f x = false))
+    \/ (g n = 0 /\ (exists x, f x = true)))
+  /\ decr g.
+Proof.
+  intro f.
+  refine (ex_intro _ (fun n => (* TODO *) n) _).
+  split.
+  + admit.
+  + admit.
+Admitted.
+
 Theorem infvalley_LPO : (forall f, decr f -> exists x, infvalley f x) -> LPO.
 Proof.
-Admitted.
+  intro H.
+  intro f.
+  destruct (infvalley_LPO_aux f) as [g pg].
+  destruct pg as [p Dg].
+  destruct (H g Dg) as [n pn].
+  case_eq (g n =? 1).
+  + intro G1.
+    right.
+    intro x.
+    unfold infvalley in pn.
+    case_eq (le_ge_dec x n).
+    -- intros l _.
+       case (p n).
+       ++ intro F.
+          destruct F as [_ F].
+          exact (F x l).
+       ++ intro F.
+          destruct F as [F _].
+          rewrite (proj1 (Nat.eqb_eq _ _) G1) in F.
+          discriminate.
+    -- intros ge _.
+       case (p x).
+       ++ intro F.
+          destruct F as [_ F].
+          exact (F x (le_n _)).
+       ++ intro F.
+          destruct F as [F _].
+          rewrite (pn x ge) in F.
+          rewrite (proj1 (Nat.eqb_eq _ _) G1) in F.
+          discriminate.
+  + intro Gn1.
+    left.
+    case (p n).
+    -- intro F.
+       destruct F as [F _].
+       rewrite (proj2 (Nat.eqb_eq _ _) F) in Gn1.
+       discriminate.
+    -- intro F.
+       destruct F as [_ F].
+       assumption.
+Qed.
 
 Lemma f_at_level:
   forall f: nat -> nat, forall x, exists g: nat -> bool,
