@@ -100,20 +100,15 @@ Proof.
          pose (q := Arith.leq_and_not' _ _ (BSm x) G).
          destruct (translate f x) as [f' tr].
          pose (D' := decr_translation f f' x D tr).
-         assert (forall y, f' y <= m) as f'Bm.
-         ++ intro y.
-            rewrite <- (tr y).
-            pose (s := decr_estimate f D x (x+y) (Nat.le_add_r x y)).
-            rewrite (Nat.add_comm y x).
-            Nat.order.
-         ++ destruct (IHm f' D' f'Bm) as [n pn].
-            refine (ex_intro _ (n + x) _).
-            intros y I.
-            rewrite (tr n).
-            rewrite <- (pn (y - x) (Arith.le_sub _ _ _ I)).
-            rewrite <- (tr (y - x)).
-            apply f_equal_nat.
-            exact (Arith.le_sub_ident _ _ _ I).
+         pose (f'Bm := decr_translation_estimate f f' x m D tr q).
+         destruct (IHm f' D' f'Bm) as [n pn].
+         refine (ex_intro _ (n + x) _).
+         intros y I.
+         rewrite (tr n).
+         rewrite <- (pn (y - x) (Arith.le_sub _ _ _ I)).
+         rewrite <- (tr (y - x)).
+         apply f_equal_nat.
+         exact (Arith.le_sub_ident _ _ _ I).
      + intros F.
        refine (ex_intro _ 0 _).
        unfold infvalley.

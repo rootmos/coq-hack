@@ -1,3 +1,4 @@
+Require Import PeanoNat.
 Require Import CMP.Decr.
 
 Definition translation(f g:nat -> nat)(n: nat) := forall x, f (x + n) = g x.
@@ -17,4 +18,14 @@ Proof.
   rewrite <- (tr (S x)).
   rewrite <- (tr x).
   exact (D (x + n)).
+Qed.
+
+Lemma decr_translation_estimate f g n b:
+  decr f -> translation f g n -> (f n <= b) -> (forall x, g x <= b).
+Proof.
+  intros D tr H x.
+  rewrite <- (tr x).
+  pose (p := proj1 (Nat.add_le_mono_r 0 x n) (Nat.le_0_l x)).
+  pose (q := decr_estimate f D n (x+n) p).
+  Nat.order.
 Qed.
