@@ -5,3 +5,4 @@ coq_math_problems/Arith.v
 coq_math_problems/Translation.v
 coq_math_problems/p1.v
 coq_math_problems/p2.v
+coq_math_problems/p3.v
