@@ -119,7 +119,7 @@ Section df_inh_cancel_sgroups.
   (* the identity *)
   Definition e: X := proj1_sig (find_we x0).
 
-  Theorem l_id: forall x, e * x = x.
+  Theorem l_id: forall x, x = e * x.
   Proof.
     intro x.
     unfold e.
@@ -127,13 +127,11 @@ Section df_inh_cancel_sgroups.
     replace (find_we x0) with p.
     - dependent inversion p as [e P].
       compute.
-      destruct (we_are_identical _ x _ P) as [[l _] _].
-      symmetry.
-      assumption.
+      exact (proj1 (proj1 (we_are_identical _ x _ P))).
     - trivial.
   Qed.
 
-  Theorem r_id : forall x, x * e = x.
+  Theorem r_id : forall x, x = x * e.
   Proof.
     intro x.
     unfold e.
@@ -141,20 +139,35 @@ Section df_inh_cancel_sgroups.
     replace (find_we x0) with p.
     - dependent inversion p as [e P].
       compute.
-      destruct (we_are_identical _ x _ P) as [[_ r] _].
-      symmetry.
-      assumption.
+      exact (proj2 (proj1 (we_are_identical _ x _ P))).
     - trivial.
   Qed.
 
   (* the inverse operation *)
-  Definition inv : X -> X.
-  Admitted.
+  Definition inv (x: X): X := proj1_sig (factorize_l e x).
 
-  Theorem l_inv : forall x, (inv x) * x = e.
-  Admitted.
+  Theorem r_inv : forall x, e = x * (inv x).
+  Proof.
+    intro x.
+    unfold inv.
+    pose (p := factorize_l e x).
+    replace (factorize_l e x) with p.
+    - dependent inversion p as [i P].
+      compute [proj1_sig].
+      exact (proj1 P).
+    - trivial.
+  Qed.
 
-  Theorem r_inv : forall x, x * (inv x) = e.
-  Admitted.
+  Theorem l_inv : forall x, e = (inv x) * x.
+  Proof.
+    intro x.
+    assert (x * e = x * inv x * x).
+    - rewrite <- (r_inv x).
+      rewrite <- (r_id _).
+      rewrite <- (l_id _).
+      trivial.
+    - rewrite <- assoc in H.
+      exact (l_cancel _ _ _ H).
+  Qed.
 
 End df_inh_cancel_sgroups.
