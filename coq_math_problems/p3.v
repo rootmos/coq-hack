@@ -17,12 +17,12 @@ Section df_inh_cancel_sgroups.
 
   Lemma X_a_inj: forall a, inj (X_a a).
   Proof.
-    intros a x x'. compute. exact (r_cancel _ _ _).
+    intros a x x'. apply r_cancel.
   Qed.
 
   Lemma a_X_inj: forall a, inj (a_X a).
   Proof.
-    intros a x x'. compute. exact (l_cancel _ _ _).
+    intros a x x'. apply l_cancel.
   Qed.
 
   Definition urf (x y z: X) := unique (fun z' => x = z' * y) z.
@@ -31,37 +31,30 @@ Section df_inh_cancel_sgroups.
   Lemma factorize_r: forall x y, {z | urf x y z }.
   Proof.
     intros x y.
-    pose (p := X_df _ (X_a_inj y) x).
-    inversion p as [z H].
+    destruct (X_df _ (X_a_inj y) x) as [z H].
     exists z.
-    split.
-    - symmetry. assumption.
-    - intro x'. rewrite <- H. exact (r_cancel _ _ _).
+    rewrite <- H.
+    split; [ reflexivity | apply r_cancel ].
   Qed.
 
   Lemma factorize_l: forall x y, {z | ulf x y z}.
   Proof.
     intros x y.
-    pose (p := X_df _ (a_X_inj y) x).
-    inversion p as [z H].
+    destruct (X_df _ (a_X_inj y) x) as [z H].
     exists z.
-    split.
-    - symmetry. assumption.
-    - intro x'. rewrite <- H. exact (l_cancel _ _ _).
+    rewrite <- H.
+    split; [ reflexivity | apply l_cancel ].
   Qed.
 
   Lemma uf_diag: forall x z, urf x x z -> z = z * z.
   Proof.
-    intros x el urf.
-    inversion urf as [pel uel].
-    pose (p := factorize_r el el). inversion p as [z [pz uz]].
+    intros x el [pel uel].
+    destruct (factorize_r el el) as [z [pz _]].
     assert (el * x = z * (el * x)) as H.
-    -- rewrite assoc.
-       rewrite <- pz.
-       trivial.
-    -- rewrite <- pel in H.
-       rewrite <- (uel z H) in pz.
-       assumption.
+    { rewrite assoc, <- pz. reflexivity. }
+    rewrite <- pel in H.
+    rewrite <- (uel z H) in pz.
+    assumption.
   Qed.
 
   (* weak identity element (ie identity element for x) *)
@@ -70,46 +63,36 @@ Section df_inh_cancel_sgroups.
   Lemma find_we: forall x, {e | we e x}.
     intro x.
     pose (p := factorize_r x x).
-    inversion p as [el P]. inversion P as [pel uel].
-    pose (elel := uf_diag _ _ P).
-    pose (q := factorize_l x x). inversion q as [er [per uer]].
+    inversion_clear p as [el P]. inversion P as [pel _].
+    destruct (factorize_l x x) as [er [per uer]].
     assert (el = er) as eler.
-    -- pose (r := factorize_l el er). inversion r as [z [pz uz]].
-       assert (x * el = (x * er) * z) as H.
-       +++ rewrite <- assoc.
-           rewrite <- pz.
-           trivial.
-       +++ rewrite <- per in H.
-           rewrite <- (l_cancel _ _ _ H) in pz.
-           symmetry in elel.
-           exact (r_cancel _ _ _ (eq_trans elel pz)).
-    -- exists er.
-       split.
-       +++ rewrite eler in pel. exact (conj pel per).
-       +++ intros f H. destruct H as [fl fr].
-           assert (x * er = x * f) as G.
-           + transitivity x. ++ symmetry. assumption. ++ assumption.
-           + exact (l_cancel _ _ _ G).
+    {
+      destruct (factorize_l el er) as [z [pz _]].
+      assert (x * el = (x * er) * z) as H.
+      { rewrite <- assoc, <- pz. reflexivity. }
+      rewrite <- per in H.
+      rewrite <- (l_cancel _ _ _ H) in pz.
+      apply r_cancel with (1 := eq_trans (eq_sym (uf_diag _ _ P)) pz).
+    }
+    exists er.
+    split.
+    - rewrite eler in pel. exact (conj pel per).
+    - intros f [fl fr]. apply uer. assumption.
   Qed.
 
   Lemma we_are_identical: forall x y e, we e x -> we e y.
   Proof.
-    intros x y we_x. intro fwx. inversion fwx as [[lx rx] ux].
-    pose (fwy := find_we y). inversion fwy as [we_y [[ly ry] uy]].
-    pose (p := factorize_l y we_x). inversion p as [z [zp _]]. clear p.
+    intros x y we_x [[lx rx] ux].
+    destruct (find_we y) as [we_y [[ly ry] uy]].
+    destruct (factorize_l y we_x) as [z [zp _]].
     assert (we_x = we_x * we_x) as we_x_we_x.
-    - rewrite lx in lx. rewrite assoc in lx. exact (r_cancel _ _ _ lx).
-    - assert (we_x * y = (we_x * we_x) * z) as H.
-      -- rewrite <- assoc. rewrite <- zp. trivial.
-      -- rewrite <- we_x_we_x in H.
-         rewrite <- (l_cancel _ _ _ H) in zp.
-         symmetry in ly.
-         pose (p := r_cancel _ _ _ (eq_trans ly zp)). (* we_y = we_x *)
-         split.
-         + split.
-           ++ assumption.
-           ++ rewrite p in ry. assumption.
-         + rewrite p in uy. assumption.
+    { rewrite lx, assoc in lx. exact (r_cancel _ _ _ lx). }
+    assert (we_x * y = (we_x * we_x) * z) as H.
+    { rewrite <- assoc, <- zp. reflexivity. }
+    rewrite <- we_x_we_x in H.
+    rewrite <- (l_cancel _ _ _ H) in zp.
+    rewrite (r_cancel _ _ _ (eq_trans (eq_sym ly) zp)) in ry, uy.
+    split; try split; assumption.
   Qed.
 
   (* the identity *)
@@ -120,11 +103,9 @@ Section df_inh_cancel_sgroups.
     intro x.
     unfold e.
     pose (p := find_we x0).
-    replace (find_we x0) with p.
-    - dependent inversion p as [e P].
-      compute.
-      exact (proj1 (proj1 (we_are_identical _ x _ P))).
-    - trivial.
+    replace (find_we x0) with p by reflexivity.
+    dependent inversion_clear p as [e P].
+    exact (proj1 (proj1 (we_are_identical _ x _ P))).
   Qed.
 
   Theorem r_id : forall x, x = x * e.
@@ -132,11 +113,9 @@ Section df_inh_cancel_sgroups.
     intro x.
     unfold e.
     pose (p := find_we x0).
-    replace (find_we x0) with p.
-    - dependent inversion p as [e P].
-      compute.
-      exact (proj2 (proj1 (we_are_identical _ x _ P))).
-    - trivial.
+    replace (find_we x0) with p by reflexivity.
+    dependent inversion_clear p as [e P].
+    exact (proj2 (proj1 (we_are_identical _ x _ P))).
   Qed.
 
   (* the inverse operation *)
@@ -147,23 +126,18 @@ Section df_inh_cancel_sgroups.
     intro x.
     unfold inv.
     pose (p := factorize_l e x).
-    replace (factorize_l e x) with p.
-    - dependent inversion p as [i P].
-      compute [proj1_sig].
-      exact (proj1 P).
-    - trivial.
+    replace (factorize_l e x) with p by reflexivity.
+    dependent inversion_clear p as [i P].
+    exact (proj1 P).
   Qed.
 
   Theorem l_inv : forall x, e = (inv x) * x.
   Proof.
     intro x.
     assert (x * e = x * inv x * x).
-    - rewrite <- (r_inv x).
-      rewrite <- (r_id _).
-      rewrite <- (l_id _).
-      trivial.
-    - rewrite <- assoc in H.
-      exact (l_cancel _ _ _ H).
+    { rewrite <- r_inv, <- r_id, <- l_id. reflexivity. }
+    rewrite <- assoc in H.
+    apply l_cancel with (1 := H).
   Qed.
 
 End df_inh_cancel_sgroups.
