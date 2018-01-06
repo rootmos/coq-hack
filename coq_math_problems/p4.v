@@ -1,6 +1,7 @@
 Require Import Fun.
 Require Import PeanoNat.
 Require Import Basics.
+Require Import List.
 
 Fixpoint Fin(n : nat): Set :=
   match n with
@@ -56,21 +57,41 @@ Proof.
   intros D f y. exact (image_dec' f y (fun x => D (f x) y)).
 Qed.
 
+Definition collision {X Y} (f: X -> Y) :=
+  {p: X*X & f (fst p) = f (snd p) & (fst p) <> (snd p)}.
+
+Lemma collision_inr {n Y} {f: Fin (S n) -> Y}:
+  collision (compose f (inr: Fin n -> Fin (S n))) -> collision f.
+Proof.
+  intros [(x, x') P Q].
+  exists (inr x, inr x').
+  + simpl.
+    unfold compose in P.
+    simpl in P.
+    exact P.
+  + simpl. simpl in P.
+    contradict Q.
+    injection Q.
+    intro. assumption.
+Qed.
+
 Lemma f_fin_dom_fin_codom {Y n}:
   forall f: Fin n -> Y,
   (forall x x', {f x = f x'} + {f x <> f x'}) ->
-  {m: nat & Image f (Fin m) & m <= n }.
+  {p: nat * (list (collision f))
+    & Image f (Fin (fst p))
+    & (fst p) + (length (snd p)) = n }.
 Proof.
   intros f D.
   induction n.
-  - exists 0. all: swap 1 2. { apply le_n. }
+  - exists (0, nil). all: swap 1 2. { reflexivity. }
     pose (f' := vacuous_f Empty_set).
     pose (f'_surj := vacuous_f_surj f').
     pose (emb := vacuous_f Y).
     pose (emb_inj := vacuous_f_inj emb).
     refine (mkImage _ _ f Empty_set f' f'_surj emb emb_inj _). { intro x. case x. }
   - pose (D_r := fun x x' => D (inr x) (inr x')).
-    destruct (IHn (compose f inr) D_r) as [m [f' f's e ei c] l].
+    destruct (IHn (compose f inr) D_r) as [(m, col) [f' f's e ei c] l].
     pose (y := f (inl tt)).
     assert(forall x, {e x = y} + {e x <> y}) as D'.
     {
@@ -82,9 +103,31 @@ Proof.
       replace y with (f (inl tt)) by trivial.
       apply D.
     }
+    fold Fin in *.
     case (image_dec' e y D').
     -- intros [x fsn'_p].
-       exists m. all: swap 1 2. { apply le_S. assumption. }
+       destruct (f's x) as [x0 x0p].
+       assert (C: collision f).
+       {
+         exists (inl tt, inr x0).
+         + unfold compose in c.
+           pose (c x0).
+           simpl.
+           rewrite <- (c x0).
+           replace (f (inl tt)) with y by reflexivity.
+           rewrite x0p.
+           symmetry.
+           assumption.
+         + discriminate.
+       }
+       exists (m, cons C (List.map collision_inr col)). all: swap 1 2.
+       {
+         simpl. simpl in l.
+         rewrite List.map_length.
+         rewrite Nat.add_succ_r.
+         apply eq_S.
+         assumption.
+       }
        pose (f'_e := fun (n: Fin (S n)) => match n with inl _ => x | inr m => f' m end).
        assert (surj f'_e) as f'_es.
        { intro y'. destruct (f's y') as [x' px]. exists (inr x'). assumption. }
@@ -98,7 +141,8 @@ Proof.
        }
        exact (mkImage _ _ f _ f'_e f'_es e ei c_e).
     -- intro H.
-       exists (S m). all: swap 1 2. { exact (proj1 (Nat.succ_le_mono _ _) l). }
+       exists (S m, List.map collision_inr col). all: swap 1 2.
+       { simpl. rewrite List.map_length. simpl in l. rewrite l. reflexivity. }
        pose (f'' := fun (x: Fin (S n)) =>
          match x with
          | inl _ => inl tt
@@ -130,8 +174,62 @@ Proof.
        exact (mkImage _ _ f (Fin (S m)) f'' f''_s e' e'_i c').
 Qed.
 
+Lemma f_inj_dec {X Y}: forall f: X -> Y,
+  (forall x x': X, {x = x'} + {x <> x'}) -> inj f ->
+  (forall x x', {f x = f x'} + {f x <> f x'}).
+Proof.
+  intros f D i x x'.
+  case (D x x').
+  + destruct 1. left. reflexivity.
+  + intro n. right. intro. apply n, i. assumption.
+Qed.
+
+Lemma fin_dec {n}: forall x x': Fin n, {x = x'} + {x <> x'}.
+Proof.
+  induction n.
+  - intro x. case x.
+  - intros x x'.
+    dependent inversion x.
+    -- dependent inversion x'.
+       + left. case u, u0. reflexivity.
+       + right. discriminate.
+    -- dependent inversion x'.
+       + right. discriminate.
+       + case (IHn f f0).
+         ++ intro e. left. rewrite e. reflexivity.
+         ++ intro n0. right. injection. assumption.
+Qed.
+
 Lemma f_inj_fin_dom_fin_codom {Y n}: forall f: Fin n -> Y, inj f -> Image f (Fin n).
-Admitted.
+Proof.
+  intros f I.
+  destruct (f_fin_dom_fin_codom f (f_inj_dec f fin_dec I)) as [(m, col) i p].
+  inversion i as [f' f's e ei c].
+  simpl in p.
+  case_eq col.
+  - intro cn.
+    rewrite cn in p.
+    simpl in p.
+    rewrite Nat.add_0_r in p.
+    simpl in i.
+    rewrite p in i.
+    exact i.
+  - intros.
+    assert (inj f') as f'i.
+    {
+      intros x x' G.
+      unfold inj in I.
+      pose ((f_equal e) (f' x) (f' x')) as F.
+      unfold compose in c.
+      rewrite c, c in F.
+      exact (I _ _ (F G)).
+    }
+    inversion c0 as [(x, x') P Q].
+    simpl in P, Q.
+    rewrite <- (c x), <- (c x') in P.
+    unfold compose in P.
+    contradiction (f'i _ _ (ei (f' x) (f' x') P)).
+Qed.
 
 Lemma f_fin_codom_eq_surj {X n}: forall f: X -> Fin n, Image f (Fin n) -> surj f.
 Admitted.
@@ -153,3 +251,9 @@ Proof.
   intros f surj.
   exact (f_fin_surj_dom_eq _ (f_fin_surj_codom f surj)).
 Qed.
+
+Lemma f_bij_fin {n m}: forall f: Fin n -> Fin m, bij f -> n = m.
+Admitted.
+
+Lemma f_bij_fin' {n}: forall f: Fin n -> Fin n, bij f.
+Admitted.
