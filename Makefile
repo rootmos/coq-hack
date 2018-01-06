@@ -1,6 +1,6 @@
 .PHONY: all clean
 all clean: CoqMakefile
-	make -f CoqMakefile $@
+	make -f $< $@
 
 CoqMakefile: _CoqProject
 	coq_makefile -f $< -o $@

@@ -1,5 +1,5 @@
 Require Import PeanoNat.
-Require Import CMP.Decr.
+Require Import Hack.CMP.Decr.
 
 Definition translation(f g:nat -> nat)(n: nat) := forall x, f (x + n) = g x.
 

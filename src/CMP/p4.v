@@ -1,4 +1,4 @@
-Require Import Fun.
+Require Import Hack.CMP.Fun.
 Require Import PeanoNat.
 Require Import Basics.
 Require Import List.

@@ -1,6 +1,6 @@
 Require Import PeanoNat.
-Require Import CMP.Arith.
-Require Import CMP.Bounded.
+Require Import Hack.CMP.Arith.
+Require Import Hack.CMP.Bounded.
 
 Definition decr(f : nat -> nat) := forall n, f (S n) <= f n.
 

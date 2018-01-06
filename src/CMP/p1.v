@@ -2,9 +2,9 @@
 
 Require Import PeanoNat.
 
-Require Import CMP.Decr.
-Require Import CMP.Bounded.
-Require CMP.Arith.
+Require Import Hack.CMP.Decr.
+Require Import Hack.CMP.Bounded.
+Require Hack.CMP.Arith.
 
 Definition eventually_bounded_by_at (f: nat -> nat) (n: nat) (x: nat)
   := forall y, x <= y -> f y <= n.

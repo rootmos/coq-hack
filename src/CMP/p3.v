@@ -1,4 +1,4 @@
-Require Import Fun.
+Require Import Hack.CMP.Fun.
 
 Section df_inh_cancel_sgroups.
   Variable X : Set.

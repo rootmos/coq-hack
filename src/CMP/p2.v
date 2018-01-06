@@ -1,9 +1,9 @@
 Require Import PeanoNat.
 Require Import Arith.Compare_dec.
 
-Require CMP.Arith.
-Require Import CMP.Decr.
-Require Import CMP.Translation.
+Require Hack.CMP.Arith.
+Require Import Hack.CMP.Decr.
+Require Import Hack.CMP.Translation.
 
 Definition LPO :=
   forall f : nat -> bool,

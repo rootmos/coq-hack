@@ -1,11 +1,11 @@
--R coq_math_problems CMP
-coq_math_problems/Bounded.v
-coq_math_problems/Decr.v
-coq_math_problems/Arith.v
-coq_math_problems/Translation.v
-coq_math_problems/Fun.v
-coq_math_problems/p1.v
-coq_math_problems/p2.v
-coq_math_problems/p3.v
-coq_math_problems/p4.v
-notes.v
+-R src Hack
+src/CMP/Bounded.v
+src/CMP/Decr.v
+src/CMP/Arith.v
+src/CMP/Translation.v
+src/CMP/Fun.v
+src/CMP/p1.v
+src/CMP/p2.v
+src/CMP/p3.v
+src/CMP/p4.v
+src/Notes/q.v
