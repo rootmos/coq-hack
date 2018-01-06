@@ -1,12 +1,12 @@
 Require Import Fun.
+Require Import PeanoNat.
+Require Import Basics.
 
 Fixpoint Fin(n : nat): Set :=
   match n with
   | 0 => Empty_set
   | S m => unit + Fin m
   end.
-
-Require Import Basics.
 
 Record Image {X Y} (f: X->Y) fX := mkImage {
   f' : X -> fX;
@@ -31,31 +31,37 @@ Proof.
   intros f y. case y.
 Qed.
 
-Lemma emb_dec {Y n}:
-  (forall y y': Y, {y = y'} + {y <> y'}) ->
-  forall e: Fin n -> Y,
-  forall y, {x | e x = y} + {forall x, e x <> y}.
+Lemma image_dec' {Y n}:
+  forall f: Fin n -> Y,
+  forall y, (forall x, {f x = y} + {f x <> y}) ->
+  {x | f x = y} + {forall x, f x <> y}.
 Proof.
-  intros D e.
+  intros f.
   induction n.
   - right. destruct x.
-  - intros y.
-    case (IHn (compose e inr) y).
+  - intros y D.
+    case (IHn (compose f inr) y (fun x => D (inr x))).
     + intros [x px]. left. exists (inr x). assumption.
     + intro H.
-      case (D (e (inl tt)) y).
+      case (D (inl tt)).
       ++ intro. left. exists (inl tt). assumption.
-      ++ right. destruct x; [case u; assumption | exact (H f)].
+      ++ right. destruct x; [case u; assumption | apply H].
 Qed.
 
-Require Import PeanoNat.
-
-Lemma f_fin_dom_fin_codom {Y n}:
+Lemma image_dec {Y n}:
   (forall y y': Y, {y = y'} + {y <> y'}) ->
   forall f: Fin n -> Y,
+  forall y, {x | f x = y} + {forall x, f x <> y}.
+Proof.
+  intros D f y. exact (image_dec' f y (fun x => D (f x) y)).
+Qed.
+
+Lemma f_fin_dom_fin_codom {Y n}:
+  forall f: Fin n -> Y,
+  (forall x x', {f x = f x'} + {f x <> f x'}) ->
   {m: nat & Image f (Fin m) & m <= n }.
 Proof.
-  intros D f.
+  intros f D.
   induction n.
   - exists 0. all: swap 1 2. { apply le_n. }
     pose (f' := vacuous_f Empty_set).
@@ -63,16 +69,28 @@ Proof.
     pose (emb := vacuous_f Y).
     pose (emb_inj := vacuous_f_inj emb).
     refine (mkImage _ _ f Empty_set f' f'_surj emb emb_inj _). { intro x. case x. }
-  - destruct (IHn (compose f inr)) as [m [f' f's e ei c] l].
-    case (emb_dec D e (f (inl tt))).
-    -- intros [y fsn'_p].
+  - pose (D_r := fun x x' => D (inr x) (inr x')).
+    destruct (IHn (compose f inr) D_r) as [m [f' f's e ei c] l].
+    pose (y := f (inl tt)).
+    assert(forall x, {e x = y} + {e x <> y}) as D'.
+    {
+      intro x.
+      destruct (f's x) as [v pv].
+      rewrite <- pv.
+      unfold compose in c.
+      rewrite (c v).
+      replace y with (f (inl tt)) by trivial.
+      apply D.
+    }
+    case (image_dec' e y D').
+    -- intros [x fsn'_p].
        exists m. all: swap 1 2. { apply le_S. assumption. }
-       pose (f'_e := fun (n: Fin (S n)) => match n with inl _ => y | inr m => f' m end).
+       pose (f'_e := fun (n: Fin (S n)) => match n with inl _ => x | inr m => f' m end).
        assert (surj f'_e) as f'_es.
-       { intro y'. destruct (f's y') as [x px]. exists (inr x). assumption. }
+       { intro y'. destruct (f's y') as [x' px]. exists (inr x'). assumption. }
        assert (forall x, compose e f'_e x = f x) as c_e.
        {
-         intro x. case x.
+         intro x'. case x'.
          + intro. compute.
            rewrite fsn'_p.
            replace u with tt; [ reflexivity | case u; reflexivity ].
@@ -93,7 +111,7 @@ Proof.
        end).
        assert (surj f'') as f''_s.
        {
-         intro y. case y.
+         intro y'. case y'.
          + destruct u. exists (inl tt). reflexivity.
          + intro v.
            destruct (f's v) as [v' pv'].
