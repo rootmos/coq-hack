@@ -2,6 +2,7 @@ Require Import Hack.CMP.Fun.
 Require Import PeanoNat.
 Require Import Basics.
 Require Import List.
+Open Scope program_scope.
 
 Fixpoint Fin(n : nat): Set :=
   match n with
@@ -231,10 +232,75 @@ Proof.
     contradiction (f'i _ _ (ei (f' x) (f' x') P)).
 Qed.
 
-Lemma f_fin_codom_eq_surj {X n}: forall f: X -> Fin n, Image f (Fin n) -> surj f.
+Lemma shuffle {n}: forall x: Fin (S n),
+  {s: Fin (S n) -> Fin (S n) & bij s & s x = inl tt}.
 Admitted.
 
+Lemma shave {n m}:
+  forall f: Fin (S n) -> Fin (S m),
+  f (inl tt) = inl tt -> {g | forall x, (inr ∘ g) x = (f ∘ inr) x}.
+Admitted.
+
+Lemma inr_inj {n}: inj (inr: Fin n -> Fin (S n)).
+Proof.
+  intros x x' H. injection H. intro. assumption.
+Qed.
+
 Theorem inj_to_surj {n}: forall f: Fin n -> Fin n, inj f -> surj f.
+Proof.
+  intros f I y.
+  induction n.
+  - case y.
+  - destruct (shuffle (f (inl tt))) as [s [si ss] ps].
+    destruct (shave (s ∘ f) ps) as [g pg].
+    fold Fin in *.
+    assert (inj g) as gi.
+    {
+      intros x x' H.
+      unfold compose in *.
+      pose (pg x) as gx.
+      pose (pg x') as gx'.
+      rewrite H, gx' in gx.
+      apply si in gx.
+      apply I in gx.
+      apply inr_inj in gx.
+      symmetry. assumption.
+    }
+    case_eq (s y).
+    + intros u H. exists (inl u). case u in *.
+      rewrite <- ps in H.
+      apply si.
+      symmetry. assumption.
+    + intros x' H.
+      destruct ((IHn g gi) x') as [x px].
+      exists (inr x).
+      rewrite <- px in H.
+      unfold compose in pg.
+      rewrite (pg x) in H.
+      apply si in H.
+      symmetry. assumption.
+Qed.
+
+Lemma f_fin_codom_eq_surj {X n}: forall f: X -> Fin n, Image f (Fin n) -> surj f.
+Proof.
+  intros f [f' f's e ei c] y.
+  case (image_dec fin_dec e y).
+  - intros [x' p'].
+    destruct (f's x') as [x p].
+    exists x.
+    unfold compose in c.
+    rewrite <- (c x).
+    rewrite p.
+    assumption.
+  - intro.
+    pose (inj_to_surj e ei) as es.
+    destruct ((compose_surj _ _ _ _ _ f's es) y) as [x px].
+    exists x.
+    rewrite <- (c x).
+    assumption.
+Qed.
+
+Theorem inj_to_surj_alt_proof {n}: forall f: Fin n -> Fin n, inj f -> surj f.
 Proof.
   intros f inj.
   exact (f_fin_codom_eq_surj _ (f_inj_fin_dom_fin_codom f inj)).
