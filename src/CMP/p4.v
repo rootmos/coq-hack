@@ -393,6 +393,34 @@ Admitted.
 
 Theorem surj_to_inj {n}: forall f : Fin n -> Fin n, surj f -> inj f.
 Proof.
+  intros f fs.
+  pose (g := fun y => projT1 (fs y)).
+  assert (inj g) as gi.
+  {
+    intros y y' G.
+    unfold g in G.
+    destruct (fs y), (fs y').
+    compute in G.
+    rewrite G in e.
+    transitivity (f x0); [symmetry|]; assumption.
+  }
+  pose (inj_to_surj g gi) as gs.
+  assert (forall y, f (g y) = y) as H.
+  {
+    intro y.
+    unfold g.
+    destruct (fs y).
+    compute.
+    assumption.
+  }
+  intros x x' G.
+  destruct (gs x) as [y py]. rewrite <- py, (H y) in G.
+  destruct (gs x') as [y' py']. rewrite <- py', (H y') in G.
+  transitivity (g y'); [rewrite G in py; symmetry|]; assumption.
+Qed.
+
+Theorem surj_to_inj_alt {n}: forall f : Fin n -> Fin n, surj f -> inj f.
+Proof.
   intros f surj.
   exact (f_fin_surj_dom_eq _ (f_fin_surj_codom f surj)).
 Qed.
