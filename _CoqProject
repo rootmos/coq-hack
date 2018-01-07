@@ -4,8 +4,10 @@ src/CMP/Decr.v
 src/CMP/Arith.v
 src/CMP/Translation.v
 src/CMP/Fun.v
-src/CMP/p1.v
-src/CMP/p2.v
-src/CMP/p3.v
-src/CMP/p4.v
+src/CMP/Fin.v
+src/CMP/Image.v
+src/CMP/P1.v
+src/CMP/P2.v
+src/CMP/P3.v
+src/CMP/P4.v
 src/Notes/q.v

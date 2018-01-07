@@ -5,6 +5,16 @@ Definition ded_fin(X : Set) := forall f : X -> X, inj f -> surj f.
 
 Definition inv{X Y}(f: X -> Y) := {g: Y -> X | forall x y, f x = y <-> g y = x}.
 
+Theorem inj_dec {X Y}: forall f: X -> Y,
+  (forall x x': X, {x = x'} + {x <> x'}) -> inj f ->
+  (forall x x', {f x = f x'} + {f x <> f x'}).
+Proof.
+  intros f D i x x'.
+  case (D x x').
+  + destruct 1. left. reflexivity.
+  + intro n. right. intro. apply n, i. assumption.
+Qed.
+
 Section compose_props.
   Require Import Basics.
   Open Scope program_scope.
@@ -67,3 +77,20 @@ Section bij_props.
     - intro H. rewrite <- H. reflexivity.
   Qed.
 End bij_props.
+
+Section vacuous_props.
+  Lemma vacuous_f: forall Y, Empty_set -> Y.
+  Proof.
+    intros Y a. case a.
+  Qed.
+
+  Lemma vacuous_f_inj {Y}: forall f: Empty_set -> Y, inj f.
+  Proof.
+    intros f x. case x.
+  Qed.
+
+  Lemma vacuous_f_surj {X}: forall f: X -> Empty_set, surj f.
+  Proof.
+    intros f y. case y.
+  Qed.
+End vacuous_props.
