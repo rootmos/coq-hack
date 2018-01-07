@@ -232,19 +232,78 @@ Proof.
     contradiction (f'i _ _ (ei (f' x) (f' x') P)).
 Qed.
 
+Lemma inr_inj {n}: inj (inr: Fin n -> Fin (S n)).
+Proof.
+  intros x x' H. injection H. intro. assumption.
+Qed.
+
 Lemma shuffle {n}: forall x: Fin (S n),
   {s: Fin (S n) -> Fin (S n) & bij s & s x = inl tt}.
-Admitted.
+Proof.
+  induction n.
+  - intro x.
+    exists id. split.
+    + intros u u' H. compute in H. assumption.
+    + intro v. exists v. compute. reflexivity.
+    + case x; intro u; case u; reflexivity.
+  - intro x. case_eq x.
+    + intros u H. dependent inversion u.
+      exists id. split.
+      ++ intros v v' G. compute in G. assumption.
+      ++ intro v. exists v. compute. reflexivity.
+      ++ compute. reflexivity.
+    + intros f H.
+      destruct (IHn f) as [t [ti ts] qt].
+
+      pose (flip := fun (y: Fin (S (S n))) => match y with
+        | inl _ => inr (inl tt)
+        | inr (inl _) => inl tt
+        | inr (inr z) => inr (inr z)
+      end).
+      assert (bij flip) as flip_bij.
+      {
+        split.
+        + intros u u' G.
+          case u, u' in *.
+          ++ case u, u0 in *. reflexivity.
+          ++ case f0 in *; compute in G; discriminate G.
+          ++ case f0 in *; compute in G; discriminate G.
+          ++ case f0, f1 in *; compute in G; try discriminate G.
+             +++ case u, u0. reflexivity.
+             +++ assumption.
+        + intro y. case y in *.
+          ++ exists (inr (inl tt)). compute. case u. reflexivity.
+          ++ case s.
+             +++ intro u. exists (inl tt). compute. case u. reflexivity.
+             +++ intro f0. exists (inr (inr f0)). compute. reflexivity.
+      }
+
+      pose (extend := fun (y: Fin (S (S n))) => match y with
+        | inl _ => inl tt
+        | inr z => inr (t z)
+      end).
+      assert (bij extend) as extend_bij.
+      {
+        split.
+        + intros u u' G.
+          case u, u' in *; compute in G; try discriminate G.
+          ++ case u, u0. reflexivity.
+          ++ apply (inr_inj (t f0) (t f1)), ti in G.
+             rewrite G. reflexivity.
+        + intro y. case y.
+          ++ intro u. exists (inl tt). compute. case u. reflexivity.
+          ++ intro f0. destruct (ts f0) as [x0 x0p]. exists (inr x0).
+             compute. rewrite x0p. reflexivity.
+      }
+      exists (flip ∘ extend).
+      ++ apply compose_bij; assumption.
+      ++ compute. rewrite qt. reflexivity.
+Qed.
 
 Lemma shave {n m}:
   forall f: Fin (S n) -> Fin (S m),
   f (inl tt) = inl tt -> {g | forall x, (inr ∘ g) x = (f ∘ inr) x}.
 Admitted.
-
-Lemma inr_inj {n}: inj (inr: Fin n -> Fin (S n)).
-Proof.
-  intros x x' H. injection H. intro. assumption.
-Qed.
 
 Theorem inj_to_surj {n}: forall f: Fin n -> Fin n, inj f -> surj f.
 Proof.
@@ -258,12 +317,9 @@ Proof.
     {
       intros x x' H.
       unfold compose in *.
-      pose (pg x) as gx.
-      pose (pg x') as gx'.
-      rewrite H, gx' in gx.
-      apply si in gx.
-      apply I in gx.
-      apply inr_inj in gx.
+      pose (gx := pg x).
+      rewrite H, (pg x') in gx.
+      apply si, I, inr_inj in gx.
       symmetry. assumption.
     }
     case_eq (s y).
