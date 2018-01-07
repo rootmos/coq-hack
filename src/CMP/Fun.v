@@ -15,6 +15,17 @@ Proof.
   + intro n. right. intro. apply n, i. assumption.
 Qed.
 
+Theorem right_inv {X Y} {f: X -> Y}:
+  surj f -> {g | forall y, f (g y) = y & inj g}.
+Proof.
+  intros fs.
+  exists (fun y => projT1 (fs y)).
+  + intro y. destruct (fs y). assumption.
+  + intros y y' G.
+    destruct (fs y) as [x e], (fs y') as [x' e'].
+    compute in G. rewrite <- e, <- e', G. reflexivity.
+Qed.
+
 Section compose_props.
   Require Import Basics.
   Open Scope program_scope.
