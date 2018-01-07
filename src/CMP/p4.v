@@ -302,16 +302,39 @@ Qed.
 
 Lemma shave {n m}:
   forall f: Fin (S n) -> Fin (S m),
+  inj f ->
   f (inl tt) = inl tt -> {g | forall x, (inr ∘ g) x = (f ∘ inr) x}.
-Admitted.
+Proof.
+  intros f I H.
+  assert (forall x, {y | f (inr x) = inr y}) as F.
+  {
+    intro x.
+    case (fin_dec (f (inr x)) (inl tt)).
+    + intro G.
+      compute in G, H.
+      rewrite <- G in H.
+      discriminate (I _ _ H).
+    + intro G.
+      case_eq (f (inr x)).
+      - intros u U0. case u in U0. contradiction.
+      - intros f0 F0. exists f0. reflexivity.
+  }
+  exists (fun x => proj1_sig (F x)).
+  intro x.
+  compute.
+  pose (F x).
+  replace (F x) with s by reflexivity.
+  destruct s.
+  symmetry. assumption.
+Qed.
 
 Theorem inj_to_surj {n}: forall f: Fin n -> Fin n, inj f -> surj f.
 Proof.
-  intros f I y.
+  intros f fi y.
   induction n.
   - case y.
   - destruct (shuffle (f (inl tt))) as [s [si ss] ps].
-    destruct (shave (s ∘ f) ps) as [g pg].
+    destruct (shave (s ∘ f) (compose_inj _ _ _ _ _ fi si) ps) as [g pg].
     fold Fin in *.
     assert (inj g) as gi.
     {
@@ -319,7 +342,7 @@ Proof.
       unfold compose in *.
       pose (gx := pg x).
       rewrite H, (pg x') in gx.
-      apply si, I, inr_inj in gx.
+      apply si, fi, inr_inj in gx.
       symmetry. assumption.
     }
     case_eq (s y).
