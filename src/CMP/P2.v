@@ -7,6 +7,13 @@ Require Hack.CMP.Arith.
 Require Import Hack.CMP.Decr.
 Require Import Hack.CMP.Translation.
 
+(* The iff's different directions are handled in quite different ways:
+   - infvalley_LPO constructs an auxillary recursive function describing a
+     falling edge at the first true value. (Think: aux(n):=~(f(0)\/..\/f(n)))
+   - LPO_infvalley notices that decr f is bounded and then uses the LPO to
+     scan the tail of the function to check if it has an infvalley or not,
+     if it hasn't the bound must eventually decrease. *)
+
 Definition LPO :=
   forall f : nat -> bool,
   (exists x, f x = true) \/ (forall x, f x = false).

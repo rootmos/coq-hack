@@ -2,6 +2,20 @@
 
 Require Import Hack.CMP.Fun.
 
+(* The proof notices that the cancellation properties makes the
+   two left/right group actions a_X and X_a injective, which in
+   turn implies that any x,y in X has a unique left/right
+   factorization.
+
+   This is used to find a "weak" identity element, defined here
+   as a unique identity element for each x, ie:
+   we(x) * x = x * we(x) = x. Then it's shown that we(x)=we(y) for
+   any x, y, letting us define e := we(x0).
+
+   The inverse is found by using the unique factorization with
+   respect to the identity element.
+*)
+
 Section df_inh_cancel_sgroups.
   Variable X : Set.
   Variable x0 : X.

@@ -5,6 +5,32 @@ Require Import Hack.CMP.Fin.
 Require Import Basics.
 Open Scope program_scope.
 
+(* The proof of inj_to_surj uses four auxillary functions to
+   implement a (bubble-sort like) "sort" algorithm that is applied
+   to enable proof by induction on n.
+
+   The auxillary functions (as a convenience here: Fin(n)={0..(n-1)})
+   * flip (bijective): flips the first two elements in a Fin(n+2) set
+   * extend: takes a function t: Fin(n)->Fin(n) and extends it to a function
+             f: Fin(n+1)->F(n+1) with f(0)=0 and the rest follows the original:
+             f(1+n)=1+t(n)
+   * shuffle: uses flip and extend to make a bijection that given a specific
+              element maps that element to 0. (Think: the element gets highest
+              priority and the set is bubble-sorted up towards the top.)
+   * shave: given an injective function f: Fin(n+1)->Fin(n+1) such that f(0)=0,
+            then shave creates an injective function g: Fin(n)->Fin(n) such that
+            1+g(n)=f(1+n). Notice that this reverses the action done by extend.
+   Then inj_to_surj is proven by induction, using the above functions
+   to assume without loss of generality that f(0)=0. If f(0) already mapped to
+   the searched for value, were done, otherwise we shave f and use the
+   induction hypothesis.
+
+   surj_to_inj is then shown by observing that a surjective function has
+   an injective right inverse (shown in Hack.CMP.Fun.right_inv), for which
+   we use inj_to_surj to that it's surjective as well. Its surjectivity
+   is used to show that our original function is indeed injective.
+*)
+
 Definition flip {n} := fun (y: Fin (S (S n))) => match y with
 | inl _ => inr (inl tt)
 | inr (inl _) => inl tt
@@ -115,13 +141,14 @@ Proof.
   induction n.
   - case y.
   - destruct (shuffle (f (inl tt))) as [s [si ss] ps].
-    destruct (shave (s ∘ f) (compose_inj _ _ _ _ _ fi si) ps) as [g pg gi].
     fold Fin in *.
     case_eq (s y).
     + intros u H. exists (inl u). case u in *.
       rewrite <- ps in H.
       apply si. symmetry. assumption.
     + intros x' H.
+      destruct (shave (s ∘ f) (compose_inj _ _ _ _ _ fi si) ps) as [g pg gi].
+      fold Fin in *.
       destruct ((IHn g gi) x') as [x px].
       exists (inr x).
       unfold compose in pg.

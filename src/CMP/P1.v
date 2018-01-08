@@ -6,6 +6,12 @@ Require Import Hack.CMP.Decr.
 Require Import Hack.CMP.Bounded.
 Require Hack.CMP.Arith.
 
+(* The solution was first prototyped in OCaml in p1.ml, and
+   the Coq proof work the same way, by noticing that either:
+   - the valley continues,
+   - the function from there on has a lower bound, and if not,
+   - we've eventually reached a bound of 0 *)
+
 Definition eventually_bounded_by_at (f: nat -> nat) (n: nat) (x: nat)
   := forall y, x <= y -> f y <= n.
 Definition eventually_bounded_by (f: nat -> nat) (n: nat)
