@@ -1,3 +1,5 @@
+(* https://coq-math-problems.github.io/Problem3/ *)
+
 Require Import Hack.CMP.Fun.
 
 Section df_inh_cancel_sgroups.
