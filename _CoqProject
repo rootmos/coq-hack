@@ -12,3 +12,4 @@ src/CMP/P3.v
 src/CMP/P4.v
 src/CMP/P5.v
 src/Notes/q.v
+src/Notes/wf.v
