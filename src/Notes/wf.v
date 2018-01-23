@@ -89,3 +89,24 @@ Proof.
   rewrite e in H4.
   exact (H3 _ H4).
 Qed.
+
+Lemma l {X} {R: X -> X -> Prop} {a}:
+  ~ Acc R a ->
+  {f: nat -> X & forall n, R (f (S n)) (f n) & inj f}.
+Admitted.
+
+Theorem t1 {X} {R: X -> X -> Prop}:
+  wiki_wf R -> well_founded R.
+Proof.
+  intro wf.
+  case (classic (well_founded R)).
+  + apply id.
+  + intro H.
+    apply not_all_ex_not in H.
+    destruct H as [a pa].
+    destruct (l pa) as [i pi ii].
+    destruct (wf _ (exist _ i ii) 0) as [m pm].
+    pose (pm (S m)).
+    pose (pi m).
+    contradiction.
+Qed.
