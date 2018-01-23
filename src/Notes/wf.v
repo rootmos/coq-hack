@@ -90,6 +90,20 @@ Proof.
   exact (H3 _ H4).
 Qed.
 
+Require Import Decidable.
+
+Lemma k {X} {R: X -> X -> Prop} {a}:
+  ~ Acc R a -> exists b: X, R b a /\ ~ Acc R b.
+Proof.
+  apply (contrapositive _ _ (classic _)).
+  intros H n. contradict n.
+  apply Acc_intro.
+  intros.
+  case (not_and_or _ _ (not_ex_all_not _ _ H y)).
+  + now intro.
+  + apply NNPP.
+Qed.
+
 Lemma l {X} {R: X -> X -> Prop} {a}:
   ~ Acc R a ->
   {f: nat -> X & forall n, R (f (S n)) (f n) & inj f}.
