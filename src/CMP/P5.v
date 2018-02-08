@@ -55,9 +55,32 @@ Proof.
     + intros H0 H1. exists 0, 1. split; [auto|now rewrite H0, H1].
 Qed.
 
-Lemma product_streamless {X Y}: streamless X -> streamless Y -> streamless (X*Y).
+Require Coq.Vectors.Fin.
+
+Lemma fin_streamless (n: nat): streamless (Fin.t n).
+Proof.
+  induction n; intro f.
+  - induction (f 0) using Fin.case0.
+  - destruct (option_streamless IHn (fun x =>
+      match f x in Fin.t (S n) return option (Fin.t n) with
+        Fin.F1 => None | Fin.FS s => Some s end)) as [i [j [p0 p1]]].
+    exists i, j.
+    split; try assumption.
+    induction (f i) using Fin.caseS'; induction (f j) using Fin.caseS';
+      try discriminate || auto.
+    inversion p1. now destruct H0.
+Qed.
+
+Lemma product_streamless {X Y}:
+  streamless X -> streamless Y -> streamless (X*Y).
 Proof.
   intros sx sy f.
+  pose (fx := fun n => fst (f n)).
+  pose (fy := fun n => snd (f n)).
+  destruct (sx fx) as [i [j [p0 p1]]].
+  induction i. induction j.
+  exfalso.
+  now apply p0.
 Admitted.
 
 Theorem streamless_sum {X Y}:
