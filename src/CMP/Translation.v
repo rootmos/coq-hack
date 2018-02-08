@@ -1,9 +1,10 @@
 Require Import PeanoNat.
 Require Import Hack.CMP.Decr.
 
-Definition translation(f g:nat -> nat)(n: nat) := forall x, f (x + n) = g x.
+Definition translation {X} (f g:nat -> X) (n: nat) :=
+  forall x, f (x + n) = g x.
 
-Lemma translate: forall f n, exists g, translation f g n.
+Lemma translate {X}: forall (f: nat -> X) n, exists g, translation f g n.
 Proof.
   intros f n.
   refine (ex_intro _ (fun x => f (x + n)) _).
