@@ -1,6 +1,5 @@
 Require Import Hack.CMP.Fun.
 Require Coq.Vectors.Fin.
-Require Decidable.
 Require Import Classical.
 Require Import Omega.
 
@@ -11,42 +10,6 @@ Definition wiki_wf {X} (R: X -> X -> Prop) :=
   forall S, forall i: subst S X, S ->
   exists m: S, forall s: S,
   ~ (R (proj1_sig i s) (proj1_sig i m)).
-
-Lemma l0 {X} {R: X -> X -> Prop}: forall x, R x x -> ~ well_founded R.
-Proof.
-  intros x px H.
-  pose (H x).
-  induction a.
-  now pose (H1 x px px).
-Qed.
-
-Lemma l0' {X} {R: X -> X -> Prop}: well_founded R -> forall x, ~ R x x.
-Proof.
-  intros wf x.
-  contradict wf.
-  exact (l0 x wf).
-Qed.
-
-Lemma singleton {X}: forall x: X,
-  {s: subst unit X | proj1_sig s tt = x}.
-Proof.
-  intro x.
-  pose (i := fun u: unit => x).
-  assert (inj i) as ii. { intros u0 u1 H. now destruct u0, u1. }
-  now exists (exist _ i ii).
-Qed.
-
-Lemma l1 {X} {R: X -> X -> Prop}: (exists x, R x x) -> ~ wiki_wf R.
-Proof.
-  intros [x px] H.
-  unfold wiki_wf in H.
-  destruct (singleton x) as [s G].
-  destruct (H unit s tt).
-  pose (H0 tt).
-  destruct s.
-  destruct x0.
-  now rewrite G in n.
-Qed.
 
 Lemma well_founded_subset {X X0} {R: X -> X -> Prop}:
   well_founded R -> forall s: subst X0 X,
@@ -65,19 +28,17 @@ Proof.
     apply Acc_intro. intros y r.
     pose (G (s y)).
     rewrite eq in a1.
-    unfold R0 in r.
     now apply (a1 r y).
   + easy.
 Qed.
 
-
-Theorem t0 {X} {R: X -> X -> Prop}:
+Theorem coq_wf_imp_wiki_wf {X} {R: X -> X -> Prop}:
   well_founded R -> wiki_wf R.
 Proof.
   intros H S s s0.
   destruct (well_founded_subset H s) as [R0 pR0].
   destruct s as [i pi].
-  apply (not_all_not_ex _ (fun m => forall s0, ~ R (i s0) (i m))).
+  apply not_all_not_ex.
   intro H0.
   assert (forall s, exists y, R (i y) (i s)).
   {
@@ -93,40 +54,37 @@ Proof.
   exact (H3 _ H4).
 Qed.
 
-
-Lemma k {X} {R: X -> X -> Prop} {a}:
+Lemma next_non_acc {X} {R: X -> X -> Prop} {a}:
   ~ Acc R a -> exists b: X, R b a /\ ~ Acc R b.
 Proof.
   apply (Decidable.contrapositive _ _ (classic _)).
   intros H n. contradict n.
   apply Acc_intro.
   intros.
-  case (not_and_or _ _ (not_ex_all_not _ _ H y)).
-  + now intro.
-  + apply NNPP.
+  case (not_and_or _ _ (not_ex_all_not _ _ H y)); [now intro|apply NNPP].
 Qed.
 
-Definition Q {X} (R: X -> X -> Prop) (x y: {x | ~ Acc R x}) := R (proj1_sig y) (proj1_sig x).
+Definition Q {X} (R: X -> X -> Prop) (x y: {x | ~ Acc R x}) :=
+    R (proj1_sig y) (proj1_sig x).
 
-Lemma kp_aux {X} {R: X -> X -> Prop}:
+Lemma lift_process_into_sig {X} {R: X -> X -> Prop}:
   forall x: {x | ~ Acc R x}, exists y: {x | ~ Acc R x}, Q R x y.
 Proof.
   intros [x px].
-  destruct (k px) as [y [py0 py1]].
+  destruct (next_non_acc px) as [y [py0 py1]].
   now exists (exist (fun a => ~ Acc R a) y py1).
 Qed.
 
 Require Hack.Notes.Process.
 
-Lemma kp {X} {R: X -> X -> Prop} {a}:
+Lemma construct_process {X} {R: X -> X -> Prop} {a}:
   ~ Acc R a -> exists f: nat -> X, forall n, R (f (S n)) (f n).
 Proof.
   intro na.
   assert ({x | ~ Acc R x}) as A by now exists a.
-  destruct (Process.process' (R:=Q R) kp_aux A) as [f pf].
+  destruct (Process.process' lift_process_into_sig A) as [f pf].
   exists (fun n => proj1_sig (f n)).
-  intro n.
-  now pose (pf n).
+  apply pf.
 Qed.
 
 Definition cyclic {I X} (R: X -> X -> Prop) (i: I -> X) :=
@@ -135,33 +93,16 @@ Definition cyclic {I X} (R: X -> X -> Prop) (i: I -> X) :=
 Definition finitely_cyclic {X} (R: X -> X -> Prop) (n: nat) :=
   {i: Fin.t (S n) -> X | cyclic R i}.
 
-Lemma Fin1 (u v: Fin.t 1): u = v.
-Proof.
-  apply Fin.to_nat_inj.
-  destruct (Fin.to_nat u), (Fin.to_nat v).
-  compute.
-  omega.
-Qed.
-
 Inductive Collapse {n} (x: Fin.t (S (S n))): Set :=
   Collapse_intro:
   forall (f: Fin.t (S (S n)) -> Fin.t (S n)) (g: Fin.t (S n) -> Fin.t (S (S n))),
   (forall z, z <> x -> g (f z) = z) -> Collapse x.
 
-Definition fin_cut (n: nat) (t: Fin.t (S (S n))): Fin.t (S n) :=
-  match t in Fin.t (S (S m)) return Fin.t (S m) with
-  | @Fin.F1 (S _) => Fin.F1
-  | @Fin.FS (S _) s => s
-  end.
-
-Definition fin_cut' (n: nat) (t: Fin.t (S n)): Fin.t (S (S n)) :=
-  match t in Fin.t (S m) return Fin.t (S (S m)) with
-  | _ => Fin.FS t
-  end.
-
 Definition collapse' (n: nat): Collapse (@Fin.F1 (S n)).
 Proof.
-  refine (Collapse_intro _  (fin_cut n) (fin_cut' n) _).
+  refine (Collapse_intro _
+    (fun t => match t with @Fin.F1 (S _) => Fin.F1 | @Fin.FS (S _) s => s end)
+    Fin.FS _).
   induction z using Fin.caseS'; try auto; contradiction.
 Qed.
 
@@ -176,57 +117,75 @@ Proof.
     refine (Collapse_intro _ (fun t => f (s t)) (fun t => s (g t)) _).
     intros z ne. unfold s. simpl.
     induction z using Fin.caseS'.
-    - rewrite e.
-      -- now rewrite Nat.eqb_refl, (proj2 (Fin.eqb_eq _ x x) eq_refl).
-      -- rewrite Nat.eqb_refl. now apply not_eq_sym.
+    - rewrite e; rewrite Nat.eqb_refl.
+      -- now rewrite (proj2 (Fin.eqb_eq _ x x) eq_refl).
+      -- now apply not_eq_sym.
     - assert (Fin.eqb x z = false).
       {
         apply Bool.not_true_is_false.
-        intro eq.
-        apply Fin.eqb_eq in eq. apply ne, Fin.FS_inj.
-        now rewrite eq.
+        rewrite Fin.eqb_eq.
+        contradict ne.
+        now rewrite ne.
       }
       rewrite H. rewrite e; [now rewrite H| discriminate].
 Qed.
 
-Lemma j' {X} {R: X -> X -> Prop} {n}:
+Lemma Fin1 (u v: Fin.t 1): u = v.
+Proof.
+  apply Fin.to_nat_inj.
+  destruct (Fin.to_nat u), (Fin.to_nat v).
+  compute.
+  omega.
+Qed.
+
+Lemma singleton {X} (x: X): {s: subst unit X | proj1_sig s tt = x}.
+Proof.
+  pose (i := fun u: unit => x).
+  assert (inj i) as ii. { intros u0 u1 H. now destruct u0, u1. }
+  now exists (exist _ i ii).
+Qed.
+
+Lemma singleton_cycle_imp_not_wiki_wf {X} {R: X -> X -> Prop} {x}:
+  R x x -> ~ wiki_wf R.
+Proof.
+  intros px H.
+  destruct (singleton x) as [s G].
+  destruct (H unit s tt) as [y p].
+  apply (p tt).
+  case y.
+  now rewrite G.
+Qed.
+
+Lemma finitely_cyclic_not_wiki_wf {X} {R: X -> X -> Prop} {n}:
   finitely_cyclic R n -> ~ wiki_wf R.
 Proof.
   induction n; intros [i pi] wf.
   + assert (t: Fin.t 1) by constructor.
     destruct (pi t).
     rewrite (Fin1 x t) in H.
-    now apply (l1 (ex_intro _ _ H)).
+    now apply (singleton_cycle_imp_not_wiki_wf H).
   + case (classic (inj i)).
     - intro ii.
       destruct (wf _ (exist _ i ii) Fin.F1) as [s ps].
       destruct (pi s) as [t tp].
       now pose (ps t).
     - intro ni.
-      apply not_all_ex_not in ni.
-      destruct ni as [x px].
-      apply not_all_ex_not in px.
-      destruct px as [y p].
+      apply not_all_ex_not in ni. destruct ni as [x px].
+      apply not_all_ex_not in px. destruct px as [y p].
       contradict p.
       intro H.
       case (Fin.eq_dec x y); try apply id.
       intro ne.
       exfalso.
       destruct (collapse x) as [r ri p0].
-      assert (finitely_cyclic R n).
-      {
-        exists (fun z => i (ri z)).
-        intro t.
-        destruct (pi (ri t)) as [z pz].
-        case (Fin.eq_dec z x).
-        -- intro e.
-           exists (r y).
-           rewrite e, H in pz.
-           apply not_eq_sym in ne.
-           now rewrite p0.
-        -- intro. exists (r z). now rewrite p0.
-      }
-      now apply IHn.
+      apply IHn; try assumption.
+      exists (fun z => i (ri z)).
+      intro t.
+      destruct (pi (ri t)) as [z pz].
+      case (Fin.eq_dec z x); intro e; [exists (r y)|exists (r z)];
+          rewrite p0; try assumption.
+      -- now rewrite <- H, <- e.
+      -- now apply not_eq_sym in ne.
 Qed.
 
 Lemma construct_cyclic {X} {R: X -> X -> Prop} {f: nat -> X}:
@@ -253,21 +212,21 @@ Proof.
     apply pf.
 Qed.
 
-Lemma l {X} {R: X -> X -> Prop} {a}:
+Lemma construct_infinitely_related_subset {X} {R: X -> X -> Prop} {a}:
   wiki_wf R -> ~ Acc R a ->
   exists f: nat -> X,
   (forall n, R (f (S n)) (f n)) /\ inj f.
 Proof.
   intros wf na.
-  destruct (kp na) as [f pf].
+  destruct (construct_process na) as [f pf].
   exists f.
   split; try assumption.
   intros n m H.
-  case (Nat.compare_spec n m); try easy; intro lt; [|symmetry in H];
-      exfalso; now apply (j' (construct_cyclic pf _ _ lt H)).
+  case (Nat.compare_spec n m); try easy; intro lt; [|symmetry in H]; exfalso;
+      now apply (finitely_cyclic_not_wiki_wf (construct_cyclic pf _ _ lt H)).
 Qed.
 
-Theorem t1 {X} {R: X -> X -> Prop}:
+Theorem wiki_wf_imp_coq_wf {X} {R: X -> X -> Prop}:
   wiki_wf R -> well_founded R.
 Proof.
   intro wf.
@@ -276,7 +235,7 @@ Proof.
   + intro H.
     apply not_all_ex_not in H.
     destruct H as [a pa].
-    destruct (l wf pa) as [i [pi ii]].
+    destruct (construct_infinitely_related_subset wf pa) as [i [pi ii]].
     destruct (wf _ (exist _ i ii) 0) as [m pm].
     pose (pm (S m)).
     pose (pi m).
