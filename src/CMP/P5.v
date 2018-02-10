@@ -102,7 +102,7 @@ Proof.
     exact (streamless_inj sx ii).
   - pose (i := fun xt: (X + Fin.t (S n)) => match xt with
       | inl x => Some (inl x)
-      | inr t => match t with Fin.F1 => None | @Fin.FS n s => Some (inr s) end
+      | inr t => match t with Fin.F1 => None | Fin.FS s => Some (inr s) end
       end).
     assert (inj i) as ii.
     {
@@ -115,7 +115,7 @@ Proof.
     exact (streamless_inj (option_streamless IHn) ii).
 Qed.
 
-Lemma product_streamless {X Y}:
+Lemma streamless_prod {X Y}:
   streamless X -> streamless Y -> streamless (X*Y).
 Proof.
   intros sx sy f.
@@ -132,7 +132,7 @@ Theorem streamless_sum {X Y}:
 Proof.
   intros sx sy f.
   destruct (split_sum sx sy f) as [g gp].
-  pose (s := product_streamless (option_streamless sx) (option_streamless sy)).
+  pose (s := streamless_prod (option_streamless sx) (option_streamless sy)).
   destruct (s g) as [i [j ne eq]].
   case_eq (g i). case_eq (g j). intros.
   pose (gi := gp i). pose (gj := gp j).
@@ -140,4 +140,22 @@ Proof.
   rewrite H in gj, eq.
   destruct o, o0, o1, o2; try contradiction; try discriminate eq;
   injection eq; destruct 1, gj; exists i, j; assumption.
+Qed.
+
+Lemma fin_product_streamless {X} (n: nat):
+  streamless X -> streamless (X * Fin.t n).
+Proof.
+  intro sx.
+  induction n.
+  - intro f. destruct (f 0) as [_ t]. induction t using Fin.case0.
+  - pose (i := fun xt: (X * Fin.t (S n)) => let (x, t) := xt in
+      match t with Fin.F1 => inr x | Fin.FS s => inl (x, s) end).
+    assert (inj i) as ii.
+    {
+      intros [x t] [x' t'] H.
+      induction t using Fin.caseS'; induction t' using Fin.caseS';
+        compute in H; try (now inversion H || discriminate).
+    }
+    refine (streamless_inj _ ii).
+    now apply streamless_sum.
 Qed.
