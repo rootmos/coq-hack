@@ -1,3 +1,7 @@
+Require Coq.Vectors.Fin.
+Require Import Hack.CMP.Fun.
+Require Import Omega.
+
 Definition repetition {X Y} (f: X -> Y) := {i: X & {j: X | i <> j & f i = f j}}.
 Definition greater (X Y: Type) := forall f: X -> Y, repetition f.
 Notation "X |>| Y" := (greater X Y) (at level 0). (* TODO: proper level *)
@@ -9,7 +13,6 @@ Notation "X |<| Y" := (smaller X Y) (at level 0).
 Definition streamless (X: Set) := nat |>| X.
 
 Lemma split_sum {X Y}:
-  streamless X -> streamless Y ->
   forall f: nat -> X + Y,
   {g: nat -> ((option X)*(option Y)) &
     forall n, match g n with
@@ -17,12 +20,62 @@ Lemma split_sum {X Y}:
       | (None, Some y) => f n = inr y
       | _ => False end}.
 Proof.
-  intros sx sy f.
+  intros f.
   exists (fun n => match f n with
     | inl x => (Some x, None)
     | inr y => (None, Some y) end
   ).
   intros n. case (f n); intro; reflexivity.
+Qed.
+
+Record Split {X Y} (f: nat -> X + Y) (n: nat) := mkSplit {
+  Split_nx: nat;
+  Split_ix: Fin.t Split_nx -> nat;
+  Split_fx: Fin.t Split_nx -> X;
+  Split_px: forall t, inl (Split_fx t) = f (Split_ix t);
+  Split_ny: nat;
+  Split_iy: Fin.t Split_ny -> nat;
+  Split_fy: Fin.t Split_ny -> Y;
+  Split_py: forall t, inr (Split_fy t) = f (Split_iy t);
+  Split_pn: Split_nx + Split_ny = n;
+}.
+
+Definition split_fin {n} (t: Fin.t (S n)): unit + Fin.t n :=
+  match t with
+  | Fin.F1 => inl tt
+  | Fin.FS s => inr s
+  end.
+
+Lemma split {X Y} (f: nat -> X + Y) (n: nat): Split f n.
+Proof.
+  induction n.
+  - assert (forall X, Fin.t 0 -> X) as vacuous by
+      (intros Z t; induction t using Fin.case0).
+    pose (ix := vacuous nat). pose (fx := vacuous X).
+    assert (forall t, inl (fx t) = f (ix t)) as px by
+      (intro t; induction t using Fin.case0).
+    pose (iy := vacuous nat). pose (fy := vacuous Y).
+    assert (forall t, inr (fy t) = f (iy t)) as py by
+      (intro t; induction t using Fin.case0).
+    now refine (mkSplit _ _ _ _ _ _ _ px _ _ _ py _).
+  - destruct IHn as [nx ix fx px ny iy fy py pn].
+    case_eq (f (S n)).
+    + intros x H.
+      pose (fun t => match split_fin t with inl _ => S n | inr s => ix s end)
+        as ix'.
+      pose (fun t => match split_fin t with inl _ => x | inr s => fx s end)
+        as fx'.
+      assert (forall t, inl (fx' t) = f (ix' t)) as px' by
+        (intro t; induction t using Fin.caseS'; [auto|apply px]).
+      refine (mkSplit _ _ _ _ _ _ _ px' _ _ _ py _); omega.
+    + intros y H.
+      pose (fun t => match split_fin t with inl _ => S n | inr s => iy s end)
+        as iy'.
+      pose (fun t => match split_fin t with inl _ => y | inr s => fy s end)
+        as fy'.
+      assert (forall t, inr (fy' t) = f (iy' t)) as py' by
+        (intro t; induction t using Fin.caseS'; [auto|apply py]).
+      refine (mkSplit _ _ _ _ _ _ _ px _ _ _ py' _); omega.
 Qed.
 
 Lemma non_empty_option_streamless {X: Set} {f: nat -> option X} {x0}:
@@ -57,8 +110,6 @@ Proof.
     + intros H0 H1. exists 0, 1; [auto|now rewrite H0, H1].
 Qed.
 
-Require Coq.Vectors.Fin.
-
 Lemma fin_streamless (n: nat): streamless (Fin.t n).
 Proof.
   induction n; intro f.
@@ -72,7 +123,6 @@ Proof.
     inversion p1. now destruct H0.
 Qed.
 
-Require Import Hack.CMP.Fun.
 
 Lemma streamless_inj {X X0: Set} {e: X0 -> X}:
   streamless X -> inj e -> streamless X0.
@@ -131,7 +181,7 @@ Theorem streamless_sum {X Y}:
   streamless X -> streamless Y -> streamless (X + Y).
 Proof.
   intros sx sy f.
-  destruct (split_sum sx sy f) as [g gp].
+  destruct (split_sum f) as [g gp].
   pose (s := streamless_prod (option_streamless sx) (option_streamless sy)).
   destruct (s g) as [i [j ne eq]].
   case_eq (g i). case_eq (g j). intros.
