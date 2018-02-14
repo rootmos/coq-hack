@@ -1,11 +1,18 @@
+(* Proof of equivalence between two definitions of a well-founded relation:
+ *   - Coq's (https://coq.inria.fr/library/Coq.Init.Wf.html) and
+ *   - Wikipedia's (https://en.wikipedia.org/wiki/Well-founded_relation)
+ * using classical logic. *)
+
 Require Import Hack.CMP.Fun.
+Require Hack.Notes.Process.
 Require Coq.Vectors.Fin.
 Require Import Classical.
 Require Import Omega.
 
 Definition subst X0 X := {f: X0 -> X | inj f}.
 
-(* from Wikipedia: https://en.wikipedia.org/wiki/Well-founded_relation *)
+(* From Wikipedia: https://en.wikipedia.org/wiki/Well-founded_relation
+   My intuition: (non-empty) paths of related elements eventually end *)
 Definition wiki_wf {X} (R: X -> X -> Prop) :=
   forall S, forall i: subst S X, S ->
   exists m: S, forall s: S,
@@ -54,6 +61,8 @@ Proof.
   exact (H3 _ H4).
 Qed.
 
+(* Given a point that's not accessible, we can point out
+ * a related point that's also not accessible *)
 Lemma next_non_acc {X} {R: X -> X -> Prop} {a}:
   ~ Acc R a -> exists b: X, R b a /\ ~ Acc R b.
 Proof.
@@ -64,41 +73,46 @@ Proof.
   case (not_and_or _ _ (not_ex_all_not _ _ H y)); [now intro|apply NNPP].
 Qed.
 
-Definition Q {X} (R: X -> X -> Prop) (x y: {x | ~ Acc R x}) :=
-    R (proj1_sig y) (proj1_sig x).
-
-Lemma lift_process_into_sig {X} {R: X -> X -> Prop}:
-  forall x: {x | ~ Acc R x}, exists y: {x | ~ Acc R x}, Q R x y.
+Lemma lift_process_into_sig {X} {R: X -> X -> Prop} (x: {x | ~ Acc R x}):
+  exists y: {x | ~ Acc R x}, R (proj1_sig y) (proj1_sig x).
 Proof.
-  intros [x px].
+  destruct x as [x px].
   destruct (next_non_acc px) as [y [py0 py1]].
-  now exists (exist (fun a => ~ Acc R a) y py1).
+  now exists (exist _ y py1).
 Qed.
 
-Require Hack.Notes.Process.
-
+(* Using the above lemmas we can create a sequence of related points
+ * starting from a non-accessible point.
+ *
+ * NB. This lemma relies upon https://coq.inria.fr/library/Coq.Logic.ClassicalChoice.html#choice
+ * via Process.process' in order to construct its sequence. *)
 Lemma construct_process {X} {R: X -> X -> Prop} {a}:
   ~ Acc R a -> exists f: nat -> X, forall n, R (f (S n)) (f n).
 Proof.
   intro na.
   assert ({x | ~ Acc R x}) as A by now exists a.
-  destruct (Process.process' lift_process_into_sig A) as [f pf].
+  destruct (Process.process'
+    (R := fun x y => R (proj1_sig y) (proj1_sig x))
+    lift_process_into_sig A) as [f pf].
   exists (fun n => proj1_sig (f n)).
   apply pf.
 Qed.
 
+(* Given a path in X, let's call it cyclic if any point on the path has a point
+ * related to it by R. *)
 Definition cyclic {I X} (R: X -> X -> Prop) (i: I -> X) :=
   forall t, exists s, R (i s) (i t).
 
 Definition finitely_cyclic {X} (R: X -> X -> Prop) (n: nat) :=
   {i: Fin.t (S n) -> X | cyclic R i}.
 
+(* remove an element from a Fin.t set *)
 Inductive Collapse {n} (x: Fin.t (S (S n))): Set :=
   Collapse_intro:
   forall (f: Fin.t (S (S n)) -> Fin.t (S n)) (g: Fin.t (S n) -> Fin.t (S (S n))),
   (forall z, z <> x -> g (f z) = z) -> Collapse x.
 
-Definition collapse' (n: nat): Collapse (@Fin.F1 (S n)).
+Lemma collapse' (n: nat): Collapse (@Fin.F1 (S n)).
 Proof.
   refine (Collapse_intro _
     (fun t => match t with @Fin.F1 (S _) => Fin.F1 | @Fin.FS (S _) s => s end)
@@ -130,6 +144,7 @@ Proof.
       rewrite H. rewrite e; [now rewrite H| discriminate].
 Qed.
 
+(* TODO: there _has_ to be a better way to prove this? *)
 Lemma Fin1 (u v: Fin.t 1): u = v.
 Proof.
   apply Fin.to_nat_inj.
@@ -145,6 +160,8 @@ Proof.
   now exists (exist _ i ii).
 Qed.
 
+(* A singleton cycle, ie a point related to itself, contradicts the Wikipedia
+ * definition of a well-founded relation. *)
 Lemma singleton_cycle_imp_not_wiki_wf {X} {R: X -> X -> Prop} {x}:
   R x x -> ~ wiki_wf R.
 Proof.
@@ -156,6 +173,10 @@ Proof.
   now rewrite G.
 Qed.
 
+(* Furthermore, having a finitely cyclic path also contradicts the definition
+ * of a well-founded relation. The proof uses the above singleton-lemma as
+ * a base case and then inductively removes a point and selects a smaller
+ * finitely cyclic subpath. *)
 Lemma finitely_cyclic_not_wiki_wf {X} {R: X -> X -> Prop} {n}:
   finitely_cyclic R n -> ~ wiki_wf R.
 Proof.
@@ -188,6 +209,9 @@ Proof.
       -- now apply not_eq_sym in ne.
 Qed.
 
+(* A small lemma constructing the proof of a finite cyclic path given
+ * a sequence of related elements and a repetition in the sequence (ie it
+ * associates the repeated values and walks along the sequence). *)
 Lemma construct_cyclic {X} {R: X -> X -> Prop} {f: nat -> X}:
   (forall n, R (f (S n)) (f n)) ->
   forall n m: nat, n < m -> f n = f m ->
@@ -212,6 +236,9 @@ Proof.
     apply pf.
 Qed.
 
+(* If we're given the facts that a relation supposedly well-founded over a set
+* and a point that is not accessible, then we can construct an infinite
+* sequence of related points without repetitions. *)
 Lemma construct_infinitely_related_subset {X} {R: X -> X -> Prop} {a}:
   wiki_wf R -> ~ Acc R a ->
   exists f: nat -> X,
@@ -226,6 +253,9 @@ Proof.
       now apply (finitely_cyclic_not_wiki_wf (construct_cyclic pf _ _ lt H)).
 Qed.
 
+(* To prove the direction that Wikipedias definition implies Coq's definition
+* of a well-founded relation, we employ reductio ad absurdum and the above
+* lemma to derive a direct contradiction against Wikipedia's definition. *)
 Theorem wiki_wf_imp_coq_wf {X} {R: X -> X -> Prop}:
   wiki_wf R -> well_founded R.
 Proof.
