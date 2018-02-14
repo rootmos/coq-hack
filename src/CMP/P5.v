@@ -1,3 +1,4 @@
+(* https://coq-math-problems.github.io/Problem5/ *)
 Require Coq.Vectors.Fin.
 Require Import Omega.
 Require Hack.CMP.Fun.
@@ -8,6 +9,7 @@ Definition repetition {X Y: Set} (f: X -> Y) :=
 Definition streamless (X: Set) :=
   forall f: nat -> X, repetition f.
 
+(* sets embedded into streamless sets are streamless *)
 Theorem streamless_inj {X X0: Set} {e: X0 -> X}:
   streamless X -> Fun.inj e -> streamless X0.
 Proof.
@@ -34,6 +36,7 @@ Proof.
     exists (S i), (S j); auto. now rewrite Fj, Fi.
 Qed.
 
+(* adding one element to a streamless set preserves streamlessness *)
 Theorem option_streamless {X}: streamless X -> streamless (option X).
 Proof.
   intros sx f.
@@ -49,6 +52,8 @@ Proof.
     + intros H0 H1. exists 0, 1; [auto|now rewrite H0, H1].
 Qed.
 
+(* Coq's own Fin.t's are streamless
+ * (corresponds to Coquand and Spiwack's enumerated sets?) *)
 Theorem fin_streamless (n: nat): streamless (Fin.t n).
 Proof.
   induction n; intro f.
@@ -62,6 +67,13 @@ Proof.
     inversion p1. now destruct H0.
 Qed.
 
+(* In order to prove that disjoint unions of streamless sets are streamless,
+ * a couple preparations are necessary. *)
+
+(* For a given arbitrary stream f: nat -> X + Y, let AuxT represent a point to
+ * be projected into option Y, where the None:s represent a repetition in f,
+ * and Some:s represent the right projection of f. *)
+
 Inductive AuxT {X Y: Set} (f: nat -> X + Y): Set :=
 | Aux_rep: repetition f -> AuxT f
 | Aux_right: forall i y, inr y = f i -> AuxT f.
@@ -72,6 +84,8 @@ Definition AuxT_bnd {X Y: Set} {f: nat -> X + Y} (a: AuxT f) :=
   | Aux_right _ i _ _ => i
   end.
 
+(* The following lemma shows how to use the fact that X is streamless to
+ * construct an AuxT point, with an arbitrarily large lower bound *)
 Lemma aux {X Y: Set} (f: nat -> X + Y) (sx: streamless X) (M: nat):
   {a: AuxT f | M < AuxT_bnd a}.
 Proof.
@@ -95,6 +109,8 @@ Proof.
     simpl. omega.
 Qed.
 
+(* Using the previous lemma we can construct a stream of AuxT:s such that
+ * their bounds always differ for differing points in the stream. *)
 Lemma aux_stream {X Y: Set} (f: nat -> X + Y) (sx: streamless X):
   {g: nat -> AuxT f | forall n m, n <> m -> AuxT_bnd (g n) <> AuxT_bnd (g m)}.
 Proof.
@@ -107,6 +123,10 @@ Proof.
   intros; exact (Incr.f_nat_incr_neq p neq).
 Qed.
 
+(* Now we're ready to show the main theorem, given the stream of AuxT:s and
+ * projecting it down to option Y and using the fact that Y is streamless we can
+ * the resulting repetition to extract the information necessary to point out
+ * a repetition in the original function. *)
 Theorem streamless_sum {X Y}:
   streamless X -> streamless Y -> streamless (X + Y).
 Proof.
@@ -125,6 +145,8 @@ Proof.
   exists u, v; [auto|]. rewrite <- pu, <- pv. now inversion p1.
 Qed.
 
+(* As a small remark, one can inductively use "x*(n+1)=x*n+1" to prove the
+ * following small lemma in the direction of streamless cartesian products. *)
 Lemma streamless_fin_product {X} (n: nat):
   streamless X -> streamless (X * Fin.t n).
 Proof.
