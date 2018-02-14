@@ -2,7 +2,8 @@ Require Coq.Vectors.Fin.
 Require Import Hack.CMP.Fun.
 Require Import Omega.
 
-Definition repetition {X Y} (f: X -> Y) := {i: X & {j: X | i <> j & f i = f j}}.
+Definition repetition {X Y: Set} (f: X -> Y) :=
+  {i: X & {j | i <> j & f i = f j}}.
 Definition streamless (X: Set) := forall f: nat -> X, repetition f.
 
 Theorem streamless_inj {X X0: Set} {e: X0 -> X}:
@@ -59,45 +60,95 @@ Proof.
     inversion p1. now destruct H0.
 Qed.
 
-Definition aux {X Y: Set} (f: nat -> X + Y) (sx: streamless X) (n M: nat):
-  repetition f + {y: Y & {i | inr y = f i & M < i}}.
+Inductive AuxT {X Y: Set} (f: nat -> X + Y): Set :=
+| Aux_rep: repetition f -> AuxT f
+| Aux_right: forall i y, inr y = f i -> AuxT f.
+
+Definition AuxT_bnd {X Y: Set} {f: nat -> X + Y} (a: AuxT f) :=
+  match a with
+  | Aux_rep _ (existT _ i (exist2 _ _ j _ _)) => max i j
+  | Aux_right _ i _ _ => i
+  end.
+
+Definition aux {X Y: Set} (f: nat -> X + Y) (sx: streamless X) (M: nat):
+  {a: AuxT f | M < AuxT_bnd a}.
 Proof.
   destruct (option_streamless sx
     (fun n => match f (n + M + 1) with inl x => Some x | _ => None end)
   ) as [i [j p0 p1]].
-  case_eq (f (i + M + 1)); case_eq (f (j + M +1));
+  case_eq (f (i + M + 1)); case_eq (f (j + M + 1));
   try (intros u q0 v q1; now rewrite q0, q1 in p1).
-  + intros. left. exists (i + M + 1), (j + M + 1); [omega|].
-    rewrite H, H0 in p1. inversion p1. subst. now transitivity (inl (B:=Y) x).
-  + intros. right. exists y. exists (j + M + 1); [auto|omega].
+  + intros.
+    assert (i + M + 1 <> j + M + 1) by omega.
+    assert (f (i + M + 1) = f (j + M + 1)).
+    { rewrite H, H0 in p1. inversion p1. subst. now transitivity (inl (B:=Y) x). }
+    pose (r := existT _ (i + M + 1) (exist2 _ _ (j + M + 1) H1 H2): repetition f).
+    refine (exist _ (Aux_rep _ r) _). simpl.
+    case (Nat.compare_spec i j); intro;
+      [ subst;rewrite Nat.max_id
+      | rewrite Nat.max_r by omega
+      | rewrite Nat.max_l by omega
+      ]; omega.
+  + intros. refine (exist _ (Aux_right _ _ _ (eq_sym H0)) _).
+    simpl. omega.
 Qed.
 
-Definition cadr {A B P} (s: {a: A & {b: B | P a b}}) :=
-    match s with existT _ _ (exist _ b _) => b end.
+Definition strict_incr (f : nat -> nat) :=
+  forall n, f n < f (S n).
 
-Lemma construct_aux {X Y: Set} (f: nat -> X + Y) (sx: streamless X):
-  {g: nat -> repetition f + {y: Y & {i | inr y = f i}} |
-      forall n m {sn sm}, inr sn = g n -> inr sm = g m ->
-      n <> m -> cadr sn <> cadr sm}.
-Admitted.
+Lemma f_nat_incr {f: nat -> nat}:
+  strict_incr f -> forall m, f 0 < f (S m).
+Proof.
+  intros I.
+  induction m; [pose (I 0)|pose (I (S m))]; omega.
+Qed.
+
+Lemma f_nat_incr_neq {f: nat -> nat}:
+  strict_incr f -> forall {n m}, n <> m -> f n <> f m.
+Proof.
+  intros I n m.
+  case (Nat.compare_spec n m); [now intros| |]; intros t _. 
+  + assert (strict_incr (fun i => f (n + i))) as I'.
+    { intro i. now replace (n + S i) with (S (n + i)) by omega. }
+    replace n with (n + 0) by omega.
+    replace m with (n + S (m - n - 1)) by omega.
+    apply Nat.lt_neq, (f_nat_incr I').
+  + assert (strict_incr (fun i => f (m + i))) as I'.
+    { intro i. now replace (m + S i) with (S (m + i)) by omega. }
+    replace m with (m + 0) by omega.
+    replace n with (m + S (n - m - 1)) by omega.
+    apply Nat.neq_sym, Nat.lt_neq, (f_nat_incr I').
+Qed.
+
+Lemma aux_with_bounds {X Y: Set} (f: nat -> X + Y) (sx: streamless X):
+  {g: nat -> AuxT f | forall n m, n <> m -> AuxT_bnd (g n) <> AuxT_bnd (g m)}.
+Proof.
+  destruct (dependent_choice
+    (fun a => aux f sx (AuxT_bnd a))
+    (proj1_sig (aux f sx 0))) as [g [_ p]].
+  exists g.
+  intros n m neq.
+  case (Nat.compare_spec n m); try contradiction;
+  intros; exact (f_nat_incr_neq p neq).
+Qed.
 
 Theorem streamless_sum {X Y}:
   streamless X -> streamless Y -> streamless (X + Y).
 Proof.
   intros sx sy f.
-  destruct (construct_aux f sx) as [g pg].
+  destruct (aux_with_bounds f sx) as [g pg].
   destruct (option_streamless sy
-    (fun n => match g n with inl _ => None | inr s => Some (projT1 s) end)
+    (fun n => match g n with
+      | Aux_rep _ _ => None
+      | Aux_right _ _ y _ => Some y
+    end)
   ) as [i [j p0 p1]].
+  pose (pg i j p0).
   case_eq (g i); case_eq (g j); try now intros.
-  intros s0 eq0 s1 eq1.
-  pose (pg i j s1 s0 (eq_sym eq1) (eq_sym eq0) p0).
-  destruct s0 as [y0 [u pu]].
-  destruct s1 as [y1 [v pv]].
+  intros u y0 pu eq0 v y1 pv eq1.
+  rewrite eq0, eq1 in p1, n.
   exists u, v; [auto|].
-  rewrite eq0, eq1 in p1.
-  inversion p1. subst.
-  now transitivity (inr (A:=X) y0).
+  inversion p1. subst. now transitivity (inr (A:=X) y0).
 Qed.
 
 Lemma streamless_fin_product {X} (n: nat):
