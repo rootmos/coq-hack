@@ -1,6 +1,7 @@
 -R src Hack
 src/CMP/Bounded.v
 src/CMP/Decr.v
+src/CMP/Incr.v
 src/CMP/Arith.v
 src/CMP/Translation.v
 src/CMP/Fun.v
