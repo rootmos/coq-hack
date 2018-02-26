@@ -66,11 +66,10 @@ Qed.
 Lemma next_non_acc {X} {R: X -> X -> Prop} {a}:
   ~ Acc R a -> exists b: X, R b a /\ ~ Acc R b.
 Proof.
-  apply (Decidable.contrapositive _ _ (classic _)).
-  intros H n. contradict n.
-  apply Acc_intro.
-  intros.
-  case (not_and_or _ _ (not_ex_all_not _ _ H y)); [now intro|apply NNPP].
+  intro n. apply Peirce. intro H. contradict n.
+  apply Acc_intro. intros.
+  destruct (not_and_or _ _ (not_ex_all_not _ _ H y));
+    [contradiction|now apply NNPP].
 Qed.
 
 Lemma lift_process_into_sig {X} {R: X -> X -> Prop} (x: {x | ~ Acc R x}):
@@ -260,14 +259,10 @@ Theorem wiki_wf_imp_coq_wf {X} {R: X -> X -> Prop}:
   wiki_wf R -> well_founded R.
 Proof.
   intro wf.
-  case (classic (well_founded R)).
-  + apply id.
-  + intro H.
-    apply not_all_ex_not in H.
-    destruct H as [a pa].
-    destruct (construct_infinitely_related_subset wf pa) as [i [pi ii]].
-    destruct (wf _ (exist _ i ii) 0) as [m pm].
-    pose (pm (S m)).
-    pose (pi m).
-    contradiction.
+  apply Peirce.
+  intro H.
+  destruct (not_all_ex_not _ _ H) as [a pa].
+  destruct (construct_infinitely_related_subset wf pa) as [i [pi ii]].
+  destruct (wf _ (exist _ i ii) 0) as [m pm].
+  pose (pm (S m)). contradiction (pi m).
 Qed.
