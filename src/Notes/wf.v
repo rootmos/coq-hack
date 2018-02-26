@@ -97,8 +97,8 @@ Proof.
   apply pf.
 Qed.
 
-(* Given a path in X, let's call it cyclic if any point on the path has a point
- * related to it by R. *)
+(* Given a path in X, let's call it cyclic if all points on the path have a
+ * point related to it by R. *)
 Definition cyclic {I X} (R: X -> X -> Prop) (i: I -> X) :=
   forall t, exists s, R (i s) (i t).
 
@@ -143,19 +143,17 @@ Proof.
       rewrite H. rewrite e; [now rewrite H| discriminate].
 Qed.
 
-(* TODO: there _has_ to be a better way to prove this? *)
 Lemma Fin1 (u v: Fin.t 1): u = v.
 Proof.
-  apply Fin.to_nat_inj.
-  destruct (Fin.to_nat u), (Fin.to_nat v).
-  compute.
-  omega.
+  induction u using Fin.caseS';
+  induction v using Fin.caseS';
+  try reflexivity; now apply Fin.case0.
 Qed.
 
 Lemma singleton {X} (x: X): {s: subst unit X | proj1_sig s tt = x}.
 Proof.
   pose (i := fun u: unit => x).
-  assert (inj i) as ii. { intros u0 u1 H. now destruct u0, u1. }
+  assert (inj i) as ii by (intros u0 u1 H; now destruct u0, u1).
   now exists (exist _ i ii).
 Qed.
 
