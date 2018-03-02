@@ -66,11 +66,10 @@ Qed.
 Lemma next_non_acc {X} {R: X -> X -> Prop} {a}:
   ~ Acc R a -> exists b: X, R b a /\ ~ Acc R b.
 Proof.
-  apply (Decidable.contrapositive _ _ (classic _)).
-  intros H n. contradict n.
-  apply Acc_intro.
-  intros.
-  case (not_and_or _ _ (not_ex_all_not _ _ H y)); [now intro|apply NNPP].
+  intro n. apply Peirce. intro H. contradict n.
+  apply Acc_intro. intros.
+  destruct (not_and_or _ _ (not_ex_all_not _ _ H y));
+    [contradiction|now apply NNPP].
 Qed.
 
 Lemma lift_process_into_sig {X} {R: X -> X -> Prop} (x: {x | ~ Acc R x}):
@@ -98,8 +97,8 @@ Proof.
   apply pf.
 Qed.
 
-(* Given a path in X, let's call it cyclic if any point on the path has a point
- * related to it by R. *)
+(* Given a path in X, let's call it cyclic if all points on the path have a
+ * point related to it by R. *)
 Definition cyclic {I X} (R: X -> X -> Prop) (i: I -> X) :=
   forall t, exists s, R (i s) (i t).
 
@@ -144,19 +143,17 @@ Proof.
       rewrite H. rewrite e; [now rewrite H| discriminate].
 Qed.
 
-(* TODO: there _has_ to be a better way to prove this? *)
 Lemma Fin1 (u v: Fin.t 1): u = v.
 Proof.
-  apply Fin.to_nat_inj.
-  destruct (Fin.to_nat u), (Fin.to_nat v).
-  compute.
-  omega.
+  induction u using Fin.caseS';
+  induction v using Fin.caseS';
+  try reflexivity; now apply Fin.case0.
 Qed.
 
 Lemma singleton {X} (x: X): {s: subst unit X | proj1_sig s tt = x}.
 Proof.
   pose (i := fun u: unit => x).
-  assert (inj i) as ii. { intros u0 u1 H. now destruct u0, u1. }
+  assert (inj i) as ii by (intros u0 u1 H; now destruct u0, u1).
   now exists (exist _ i ii).
 Qed.
 
@@ -260,14 +257,10 @@ Theorem wiki_wf_imp_coq_wf {X} {R: X -> X -> Prop}:
   wiki_wf R -> well_founded R.
 Proof.
   intro wf.
-  case (classic (well_founded R)).
-  + apply id.
-  + intro H.
-    apply not_all_ex_not in H.
-    destruct H as [a pa].
-    destruct (construct_infinitely_related_subset wf pa) as [i [pi ii]].
-    destruct (wf _ (exist _ i ii) 0) as [m pm].
-    pose (pm (S m)).
-    pose (pi m).
-    contradiction.
+  apply Peirce.
+  intro H.
+  destruct (not_all_ex_not _ _ H) as [a pa].
+  destruct (construct_infinitely_related_subset wf pa) as [i [pi ii]].
+  destruct (wf _ (exist _ i ii) 0) as [m pm].
+  pose (pm (S m)). contradiction (pi m).
 Qed.
