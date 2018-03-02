@@ -65,3 +65,33 @@ Proof.
   inversion H17.
   reflexivity.
 Qed.
+
+Lemma exercise_9_3_2:
+  ~ inhabited {c: ctx & {T: type & typing c (T_app (T_var 0) (T_var 0)) T}}.
+Proof.
+  unfold not.
+  intros [[c [T typ]]].
+  destruct c; inversion typ; inversion H4; subst.
+  + discriminate.
+  + inversion H7. rewrite <- H0 in *.
+    inversion H2. subst. inversion H3.
+    clear H7. clear H2. clear typ. clear H3. clear H4. clear c.
+    induction T1.
+    - discriminate.
+    - inversion H0.
+      rewrite H2 in H1.
+      exact (IHT1_1 H1).
+Qed.
+
+Theorem uniqueness_of_types {c t T T'}: typing c t T -> typing c t T' -> T = T'.
+Proof.
+  revert c T T'.
+  induction t; intros c T T' p1 p2; inversion p1; inversion p2; subst;
+    try reflexivity.
+  - enough (Some T = Some T') by now inversion H.
+    now transitivity (nth_error c n).
+  - now rewrite (IHt _ _ _ H3 H8).
+  - rewrite (IHt2 _ _ _ H4 H10) in H2.
+    pose (IHt1 _ _ _ H2 H8).
+    now inversion e.
+Qed.
