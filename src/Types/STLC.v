@@ -19,7 +19,7 @@ Inductive value :=
 
 Definition ctx := list type.
 
-Inductive typing: ctx -> term -> type -> Type :=
+Inductive typing: ctx -> term -> type -> Set :=
 | Typ_true : forall {ctx}, typing ctx T_true Ty_bool
 | Typ_false : forall {ctx}, typing ctx T_false Ty_bool
 | Typ_var : forall {n T ctx},
@@ -94,4 +94,38 @@ Proof.
   - rewrite (IHt2 _ _ _ H4 H10) in H2.
     pose (IHt1 _ _ _ H2 H8).
     now inversion e.
+Qed.
+
+Definition is_value (t: term) :=
+  match t with T_abs _ _ | T_true | T_false => true | _ => false end.
+
+Fixpoint subst (n: nat) (t: term) (v: term) :=
+  match t with
+  | T_var m => if (Nat.eqb m n) then v else t
+  | T_abs T t => T_abs T (subst (S n) t v)
+  | T_app t1 t2 => T_app (subst n t1 v) (subst n t2 v)
+  | _ => t
+  end.
+
+Inductive eval: term -> term -> Set :=
+| E_app1: forall {t t' s}, eval t t' ->
+    eval (T_app t s) (T_app t' s)
+| E_app2: forall {v t t'}, is_value v = true ->
+    eval t t' -> eval (T_app v t) (T_app v t')
+| E_app_abs: forall T t {v}, is_value v = true ->
+    eval (T_app (T_abs T t) v) (subst 0 t v).
+
+Theorem progress {t T}:
+  typing [] t T -> (is_value t = true) + {t': term & eval t t'}.
+Proof.
+  pose (c := @nil type). assert (c = []) by reflexivity. rewrite <- H.
+  induction 1; try now left. rewrite H in e; try (destruct n; discriminate).
+  right. inversion H0_; subst; try (destruct n; discriminate).
+  - case_eq (is_value t2). intros.
+    + exists (subst 0 t0 t2). now apply E_app_abs.
+    + case (IHtyping2 (eq_refl _)).
+      ++ intros. now rewrite e in H.
+      ++ intros [t' p]. exists (T_app (T_abs T1 t0) t'). now apply E_app2.
+  - case (IHtyping1 (eq_refl _)); [discriminate|].
+    intros [a p]. exists (T_app a t2). now apply E_app1.
 Qed.
