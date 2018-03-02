@@ -12,6 +12,7 @@ src/CMP/P2.v
 src/CMP/P3.v
 src/CMP/P4.v
 src/CMP/P5.v
+src/Types/STLC.v
 src/Notes/q.v
 src/Notes/wf.v
 src/Notes/Process.v
