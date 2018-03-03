@@ -2,6 +2,8 @@
 
 Require Import List.
 Import ListNotations.
+Require Import Omega.
+Require Import PeanoNat.
 
 Inductive type :=
 | Ty_bool : type
@@ -99,13 +101,48 @@ Qed.
 Definition is_value (t: term) :=
   match t with T_abs _ _ | T_true | T_false => true | _ => false end.
 
-Fixpoint subst (n: nat) (t: term) (v: term) :=
+
+Fixpoint shift' (c: nat) (d: nat) (t: term) :=
   match t with
-  | T_var m => if (Nat.eqb m n) then v else t
-  | T_abs T t => T_abs T (subst (S n) t v)
-  | T_app t1 t2 => T_app (subst n t1 v) (subst n t2 v)
+  | T_var k => if k <? c then t else T_var (k + d)
+  | T_abs T t => T_abs T (shift' (S c) d t)
+  | T_app t1 t2 => T_app (shift' c d t1) (shift' c d t2)
   | _ => t
   end.
+
+Fixpoint unshift' (c: nat) (d: nat) (t: term) :=
+  match t with
+  | T_var k => if k <? c then t else T_var (k - d)
+  | T_abs T t => T_abs T (unshift' (S c) d t)
+  | T_app t1 t2 => T_app (unshift' c d t1) (unshift' c d t2)
+  | _ => t
+  end.
+
+Definition shift := shift' 0.
+Definition unshift := unshift' 0.
+
+Fixpoint subst (j: nat) (t: term) (s: term) :=
+  match t with
+  | T_var k => if k =? j then s else t
+  | T_abs T t1 => T_abs T (subst (S j) t1 (shift 1 s))
+  | T_app t1 t2 => T_app (subst j t1 s) (subst j t2 s)
+  | _ => t
+  end.
+
+Lemma unshift_shift t: forall c d,  unshift' c d (shift' c d t) = t.
+Proof.
+  induction t; auto; simpl; intros c d.
+  - unfold unshift'.
+    case_eq (n <? c).
+    + intros ltb. now rewrite ltb.
+    + intros ltb. apply Nat.ltb_nlt in ltb.
+      assert (~ n + d < c) by omega.
+      apply Nat.ltb_nlt in H.
+      rewrite H.
+      now rewrite Nat.add_sub.
+  - f_equal. apply IHt.
+  - f_equal; [apply IHt1 | apply IHt2].
+Qed.
 
 Inductive eval: term -> term -> Set :=
 | E_app1: forall {t t' s}, eval t t' ->
@@ -113,7 +150,7 @@ Inductive eval: term -> term -> Set :=
 | E_app2: forall {v t t'}, is_value v = true ->
     eval t t' -> eval (T_app v t) (T_app v t')
 | E_app_abs: forall T t {v}, is_value v = true ->
-    eval (T_app (T_abs T t) v) (subst 0 t v).
+    eval (T_app (T_abs T t) v) (unshift 1 (subst 0 t (shift 1 v))).
 
 Theorem progress {t T}:
   typing [] t T -> (is_value t = true) + {t': term & eval t t'}.
@@ -122,10 +159,179 @@ Proof.
   induction 1; try now left. rewrite H in e; try (destruct n; discriminate).
   right. inversion H0_; subst; try (destruct n; discriminate).
   - case_eq (is_value t2). intros.
-    + exists (subst 0 t0 t2). now apply E_app_abs.
+    + exists (unshift 1 (subst 0 t0 (shift 1 t2))). now apply E_app_abs.
     + case (IHtyping2 (eq_refl _)).
       ++ intros. now rewrite e in H.
       ++ intros [t' p]. exists (T_app (T_abs T1 t0) t'). now apply E_app2.
   - case (IHtyping1 (eq_refl _)); [discriminate|].
     intros [a p]. exists (T_app a t2). now apply E_app1.
+Qed.
+
+Lemma shift'_add a b n {t}: shift' n a (shift' n b t) = shift' n (a + b) t.
+Proof.
+  revert n.
+  induction t; intro; simpl; try reflexivity.
+  - case_eq (n <? n0); intros; simpl.
+    + now rewrite H.
+    + apply Nat.ltb_nlt in H.
+      assert (~ n + b < n0) by omega.
+      apply Nat.ltb_nlt in H0.
+      rewrite H0.
+      f_equal.
+      omega.
+  - f_equal. apply IHt.
+  - f_equal; [apply IHt1 | apply IHt2].
+Qed.
+
+Lemma shift'_0 n t: shift' n 0 t = t.
+Proof.
+  revert n.
+  induction t; intros n0; try easy; simpl.
+  + rewrite Nat.add_0_r. case (n <? n0); reflexivity.
+  + f_equal. apply IHt.
+  + f_equal; [apply IHt1 | apply IHt2].
+Qed.
+
+Lemma typing_permutation_shift {c d d' c' t T}:
+  length d = length d' ->
+  typing (c ++ d ++ c') (shift' (length c) (length d) t) T ->
+  typing (c ++ d' ++ c') (shift' (length c) (length d') t) T.
+Proof.
+  revert c c' d d' T.
+  induction t; intros c c' d d' T P; simpl.
+  + inversion_clear 1. apply Typ_true.
+  + inversion_clear 1. apply Typ_false.
+  + case_eq (n <? length c).
+    - intros lt. inversion_clear 1. apply Typ_var. rewrite <- H0.
+      apply Nat.ltb_lt in lt.
+      now rewrite (nth_error_app1 c (d ++ c') lt),
+        (nth_error_app1 c (d' ++ c') lt).
+    - intros nlt. inversion_clear 1. apply Typ_var. rewrite <- H0.
+      apply Nat.ltb_ge in nlt.
+      assert (length (c ++ d) <= n + length d) by (rewrite app_length; omega).
+      pose (nth_error_app2 (c ++ d) c' H).
+      assert (length (c ++ d') <= n + length d') by (rewrite app_length; omega).
+      pose (nth_error_app2 (c ++ d') c' H1).
+      rewrite <- app_assoc in e0, e.
+      rewrite e, e0.
+      f_equal.
+      repeat rewrite app_length.
+      now rewrite P.
+  + inversion_clear 1.
+    now apply Typ_abs, (IHt (t :: c) _ _ _ _ P).
+  + inversion_clear 1.
+    apply (Typ_app T1);
+      [apply (IHt1 _ _ _ _ _ P)| apply (IHt2 _ _ _ _ _ P)];
+      assumption.
+Qed.
+
+Fixpoint absent (j: nat) (t: term) :=
+  match t with
+  | T_var i => i <> j
+  | T_abs _ t1 => absent (S j) t1
+  | T_app t1 t2 => absent j t1 /\ absent j t2
+  | _ => True
+  end.
+
+Lemma shift_absent {j i n} t: j <= n < j + i -> absent n (shift' j i t).
+Proof.
+  revert j i n.
+  induction t; intros; try easy; simpl.
+  - case_eq (n <? j); intros;
+      [apply Nat.ltb_lt in H0 | apply Nat.ltb_ge in H0]; simpl; omega.
+  - apply IHt. omega.
+  - split; [apply IHt1|apply IHt2]; assumption.
+Qed.
+
+Lemma shift_absent_le {j n} i t: absent n t -> n < j -> absent n (shift' j i t).
+Proof.
+  revert j n i.
+  induction t; intros; try easy; simpl.
+  - case_eq (n <? j); intros; simpl; try assumption.
+    rewrite Nat.ltb_ge in H1. omega.
+  - apply IHt. now simpl in H. omega.
+  - destruct H. split; [apply IHt1 | apply IHt2]; assumption.
+Qed.
+
+Lemma shift_absent_ge {j n} i t: absent n t -> j <= n -> absent (n + i) (shift' j i t).
+Proof.
+  revert j n i.
+  induction t; intros; try easy; simpl.
+  - case_eq (n <? j); intros; simpl.
+    + rewrite Nat.ltb_lt in H1. omega.
+    + case (Nat.eq_dec n n0).
+      ++ intros. rewrite e in H. now destruct H.
+      ++ intros. omega.
+  - assert (S (n + i) = S n + i) by auto.
+    rewrite H1. apply IHt. now simpl in H. omega.
+  - destruct H. split; [apply IHt1 | apply IHt2]; assumption.
+Qed.
+
+Lemma shift_comm {i j k l} t: i + j <= k ->
+  shift' i j (shift' k l t) = shift' (k + j) l (shift' i j t).
+Proof.
+  revert i j k l.
+  induction t; try easy; intros; simpl.
+  - case_eq (n <? i); intros; simpl.
+    + pose H0. apply Nat.ltb_lt in e.
+      assert (n <? k = true) by (apply Nat.ltb_lt; omega).
+      assert (n <? k + j = true) by (apply Nat.ltb_lt; omega).
+      rewrite H1, H2. simpl. now rewrite H0.
+    + intros. pose H0. apply Nat.ltb_ge in e.
+      case_eq (n <? k).
+      ++ intros. simpl. rewrite H0. apply Nat.ltb_lt in H1.
+         enough (n + j <? k + j = true) by now rewrite H2.
+         apply Nat.ltb_lt. omega.
+      ++ intros. simpl. apply Nat.ltb_ge in H1.
+         assert (n + j <? k + j = false) by (apply Nat.ltb_ge; omega).
+         assert (n + l <? i = false) by (apply Nat.ltb_ge; omega).
+         rewrite H2, H3. f_equal. omega.
+  - f_equal. apply IHt. omega.
+  - f_equal; [apply IHt1|apply IHt2]; assumption.
+Qed.
+
+Lemma subst_absent_eq {t s n}: absent n s -> absent n t -> subst n t s = t.
+Proof.
+  revert n s.
+  induction t; intros; try easy; simpl.
+  - case_eq (n =? n0); intros; [|reflexivity].
+    rewrite Nat.eqb_eq in H1. rewrite H1 in H0. now destruct H0.
+  - f_equal.
+    simpl in H0.
+    apply IHt; [|assumption].
+    rewrite <- Nat.add_1_r.
+    apply shift_absent_ge; [assumption|apply Nat.le_0_l].
+  - f_equal; destruct H0; [apply IHt1|apply IHt2]; assumption.
+Qed.
+
+Lemma preservation_under_substitution {c s S t T}:
+  typing (S :: c) t T -> typing c s S ->
+  typing c (unshift 1 (subst 0 t (shift 1 s))) T.
+Proof.
+Admitted.
+
+Theorem preservation {c t t' T}:
+  typing c t T -> eval t t' -> typing c t' T.
+Proof.
+  intros typ e.
+  revert T typ.
+  induction e.
+  - intros T typ. inversion typ. subst.
+    apply (Typ_app T1); [apply (IHe _ H2) | assumption].
+  - intros T typ. inversion typ. subst.
+    apply (Typ_app T1); [now pose (IHe _ H4) | now apply IHe].
+  - intros T0 typ.
+    inversion_clear typ. inversion_clear H. inversion_clear H1.
+    + apply Typ_true.
+    + apply Typ_false.
+    + destruct n.
+      ++ inversion H. rewrite <- H2. unfold subst. simpl.
+         unfold unshift, shift.
+         now rewrite unshift_shift.
+      ++ apply Typ_var.
+         rewrite <- H. simpl. now rewrite Nat.sub_0_r.
+    + refine (preservation_under_substitution _ H0).
+      now apply Typ_abs.
+    + refine (preservation_under_substitution _ H0).
+      apply (Typ_app T2); assumption.
 Qed.
