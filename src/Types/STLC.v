@@ -304,6 +304,34 @@ Proof.
   - f_equal; destruct H0; [apply IHt1|apply IHt2]; assumption.
 Qed.
 
+Lemma absent_unshift_typing {t c c' T}: absent (length c) t -> forall S,
+  typing (c ++ S :: c') t T -> typing (c ++ c') (unshift' (length c) 1 t) T.
+Proof.
+  revert c c' T.
+  induction t; intros; inversion_clear H0; simpl.
+  - apply Typ_true.
+  - apply Typ_false.
+  - case_eq (n <? length c); intro; apply Typ_var; rewrite <- H1.
+    + apply Nat.leb_le in H0.
+      rewrite (nth_error_app1 c c' H0).
+      now rewrite (nth_error_app1 c (S :: c') H0).
+    + apply Nat.leb_gt in H0.
+      unfold lt in H0. apply le_S_n in H0.
+      case (Nat.eq_dec (length c) n); intros.
+      ++ rewrite e in H. now destruct H.
+      ++ destruct n; [now apply Nat.le_0_r in H0|].
+         rewrite Nat.sub_1_r, <- pred_Sn.
+         assert (S :: c' = [S] ++ c') by auto.
+         rewrite H2, app_assoc,
+           (nth_error_app2 (c ++ [S]) c'); rewrite app_length.
+         +++ rewrite Nat.add_1_r, nth_error_app2. f_equal. omega.
+         +++ simpl. omega.
+  - apply Typ_abs. simpl in H. exact (IHt (t::c) c' T2 H S H1).
+  - destruct H. apply (Typ_app T1);
+      [apply (IHt1 c c' _ H S) | apply (IHt2 c c' _ H0 S)];
+      assumption.
+Qed.
+
 Lemma preservation_under_substitution {c s S t T}:
   typing (S :: c) t T -> typing c s S ->
   typing c (unshift 1 (subst 0 t (shift 1 s))) T.
