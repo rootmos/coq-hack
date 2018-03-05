@@ -101,7 +101,6 @@ Qed.
 Definition is_value (t: term) :=
   match t with T_abs _ _ | T_true | T_false => true | _ => false end.
 
-
 Fixpoint shift' (c: nat) (d: nat) (t: term) :=
   match t with
   | T_var k => if k <? c then t else T_var (k + d)
@@ -129,21 +128,6 @@ Fixpoint subst (j: nat) (t: term) (s: term) :=
   | _ => t
   end.
 
-Lemma unshift_shift t: forall c d,  unshift' c d (shift' c d t) = t.
-Proof.
-  induction t; auto; simpl; intros c d.
-  - unfold unshift'.
-    case_eq (n <? c).
-    + intros ltb. now rewrite ltb.
-    + intros ltb. apply Nat.ltb_nlt in ltb.
-      assert (~ n + d < c) by omega.
-      apply Nat.ltb_nlt in H.
-      rewrite H.
-      now rewrite Nat.add_sub.
-  - f_equal. apply IHt.
-  - f_equal; [apply IHt1 | apply IHt2].
-Qed.
-
 Inductive eval: term -> term -> Set :=
 | E_app1: forall {t t' s}, eval t t' ->
     eval (T_app t s) (T_app t' s)
@@ -167,67 +151,6 @@ Proof.
     intros [a p]. exists (T_app a t2). now apply E_app1.
 Qed.
 
-Lemma shift'_add a b n m {t}:
-  n <= m <= n + b -> shift' m a (shift' n b t) = shift' n (a + b) t.
-Proof.
-  revert n m.
-  induction t; intros; simpl; try reflexivity.
-  - case_eq (n <? n0); intros; simpl.
-    + apply Nat.ltb_lt in H0.
-      assert (n <? m = true) by (apply Nat.ltb_lt; omega).
-      now rewrite H1.
-    + apply Nat.ltb_nlt in H0.
-      assert (~ n + b < m) by omega.
-      apply Nat.ltb_nlt in H1.
-      rewrite H1.
-      f_equal.
-      omega.
-  - f_equal. apply IHt. omega.
-  - f_equal; [apply IHt1 | apply IHt2]; omega.
-Qed.
-
-Lemma shift'_0 n t: shift' n 0 t = t.
-Proof.
-  revert n.
-  induction t; intros n0; try easy; simpl.
-  + rewrite Nat.add_0_r. case (n <? n0); reflexivity.
-  + f_equal. apply IHt.
-  + f_equal; [apply IHt1 | apply IHt2].
-Qed.
-
-Lemma typing_permutation_shift {c d d' c' t T}:
-  length d = length d' ->
-  typing (c ++ d ++ c') (shift' (length c) (length d) t) T ->
-  typing (c ++ d' ++ c') (shift' (length c) (length d') t) T.
-Proof.
-  revert c c' d d' T.
-  induction t; intros c c' d d' T P; simpl.
-  + inversion_clear 1. apply Typ_true.
-  + inversion_clear 1. apply Typ_false.
-  + case_eq (n <? length c).
-    - intros lt. inversion_clear 1. apply Typ_var. rewrite <- H0.
-      apply Nat.ltb_lt in lt.
-      now rewrite (nth_error_app1 c (d ++ c') lt),
-        (nth_error_app1 c (d' ++ c') lt).
-    - intros nlt. inversion_clear 1. apply Typ_var. rewrite <- H0.
-      apply Nat.ltb_ge in nlt.
-      assert (length (c ++ d) <= n + length d) by (rewrite app_length; omega).
-      pose (nth_error_app2 (c ++ d) c' H).
-      assert (length (c ++ d') <= n + length d') by (rewrite app_length; omega).
-      pose (nth_error_app2 (c ++ d') c' H1).
-      rewrite <- app_assoc in e0, e.
-      rewrite e, e0.
-      f_equal.
-      repeat rewrite app_length.
-      now rewrite P.
-  + inversion_clear 1.
-    now apply Typ_abs, (IHt (t :: c) _ _ _ _ P).
-  + inversion_clear 1.
-    apply (Typ_app T1);
-      [apply (IHt1 _ _ _ _ _ P)| apply (IHt2 _ _ _ _ _ P)];
-      assumption.
-Qed.
-
 Fixpoint absent (j: nat) (t: term) :=
   match t with
   | T_var i => i <> j
@@ -244,30 +167,6 @@ Proof.
       [apply Nat.ltb_lt in H0 | apply Nat.ltb_ge in H0]; simpl; omega.
   - apply IHt. omega.
   - split; [apply IHt1|apply IHt2]; assumption.
-Qed.
-
-Lemma shift_absent_le {j n} i t: absent n t -> n < j -> absent n (shift' j i t).
-Proof.
-  revert j n i.
-  induction t; intros; try easy; simpl.
-  - case_eq (n <? j); intros; simpl; try assumption.
-    rewrite Nat.ltb_ge in H1. omega.
-  - apply IHt. now simpl in H. omega.
-  - destruct H. split; [apply IHt1 | apply IHt2]; assumption.
-Qed.
-
-Lemma shift_absent_ge {j n} i t: absent n t -> j <= n -> absent (n + i) (shift' j i t).
-Proof.
-  revert j n i.
-  induction t; intros; try easy; simpl.
-  - case_eq (n <? j); intros; simpl.
-    + rewrite Nat.ltb_lt in H1. omega.
-    + case (Nat.eq_dec n n0).
-      ++ intros. rewrite e in H. now destruct H.
-      ++ intros. omega.
-  - assert (S (n + i) = S n + i) by auto.
-    rewrite H1. apply IHt. now simpl in H. omega.
-  - destruct H. split; [apply IHt1 | apply IHt2]; assumption.
 Qed.
 
 Lemma shift_comm {i j k l} t: i <= k ->
@@ -293,44 +192,34 @@ Proof.
   - f_equal; [apply IHt1|apply IHt2]; assumption.
 Qed.
 
-Lemma subst_absent_eq {t s n}: absent n s -> absent n t -> subst n t s = t.
+Lemma unshift_shift t: forall c d,  unshift' c d (shift' c d t) = t.
 Proof.
-  revert n s.
-  induction t; intros; try easy; simpl.
-  - case_eq (n =? n0); intros; [|reflexivity].
-    rewrite Nat.eqb_eq in H1. rewrite H1 in H0. now destruct H0.
-  - f_equal.
-    simpl in H0.
-    apply IHt; [|assumption].
-    rewrite <- Nat.add_1_r.
-    apply shift_absent_ge; [assumption|apply Nat.le_0_l].
-  - f_equal; destruct H0; [apply IHt1|apply IHt2]; assumption.
+  induction t; auto; simpl; intros c d.
+  - unfold unshift'.
+    case_eq (n <? c).
+    + intros ltb. now rewrite ltb.
+    + intros ltb. apply Nat.ltb_nlt in ltb.
+      assert (~ n + d < c) by omega.
+      apply Nat.ltb_nlt in H.
+      rewrite H.
+      now rewrite Nat.add_sub.
+  - f_equal. apply IHt.
+  - f_equal; [apply IHt1 | apply IHt2].
 Qed.
 
-Lemma absent_succ {n s}: absent n s -> absent (S n) (shift 1 s).
-Admitted.
-
-Lemma subst_absent {t s n}: absent n s -> absent n (subst n t s).
+Lemma absent_intro_unshift {t c}:
+  let n := length c in absent n t -> forall S c' {T},
+  typing (c ++ S :: c') t T -> typing (c ++ c') (unshift' n 1 t) T.
 Proof.
-  revert n s .
-  induction t; intros; try easy; simpl.
-  - case_eq (n =? n0). intro. assumption.
-    intro. now rewrite Nat.eqb_neq in H0.
-  - now apply IHt, absent_succ.
-  - split; [apply IHt1|apply IHt2]; assumption.
-Qed.
-
-Lemma absent_unshift_typing {t c c' T}: absent (length c) t -> forall S,
-  typing (c ++ S :: c') t T -> typing (c ++ c') (unshift' (length c) 1 t) T.
-Proof.
-  revert c c' T.
+  intros n. replace n with (length c) by reflexivity. clear n.
+  revert c.
   induction t; intros; inversion_clear H0; simpl.
   - apply Typ_true.
   - apply Typ_false.
   - case_eq (n <? length c); intro; apply Typ_var; rewrite <- H1.
     + apply Nat.leb_le in H0.
       rewrite (nth_error_app1 c c' H0).
-      now rewrite (nth_error_app1 c (S :: c') H0).
+      now rewrite (nth_error_app1 c (S :: c')).
     + apply Nat.leb_gt in H0.
       unfold lt in H0. apply le_S_n in H0.
       case (Nat.eq_dec (length c) n); intros.
@@ -342,22 +231,23 @@ Proof.
            (nth_error_app2 (c ++ [S]) c'); rewrite app_length.
          +++ rewrite Nat.add_1_r, nth_error_app2. f_equal. omega.
          +++ simpl. omega.
-  - apply Typ_abs. simpl in H. exact (IHt (t::c) c' T2 H S H1).
+  - apply Typ_abs. simpl in H. apply (IHt (t::c) H _ _ _ H1).
   - destruct H. apply (Typ_app T1);
-      [apply (IHt1 c c' _ H S) | apply (IHt2 c c' _ H0 S)];
+      [apply (IHt1 c H S c') | apply (IHt2 c H0 S c')];
       assumption.
 Qed.
 
-Lemma absent_unshift_typing' {t c c' T}: absent (length c) t ->
-  typing (c ++ c') (unshift' (length c) 1 t) T ->
+Lemma absent_elim_unshift {t c}:
+  let n := length c in absent n t ->
+  forall c' {T}, typing (c ++ c') (unshift' n 1 t) T ->
   forall S, typing (c ++ S :: c') t T.
 Proof.
-  revert c c' T.
+  revert c.
   induction t; intros.
   - inversion_clear H0. apply Typ_true.
   - inversion_clear H0. apply Typ_false.
   - apply Typ_var. simpl in H0.
-    case_eq (n ?= length c); intros.
+    case_eq (n ?= n0); intros.
     + apply Nat.compare_eq_iff in H1. subst.
       now destruct H.
     + apply Nat.compare_lt_iff in H1.
@@ -367,15 +257,16 @@ Proof.
       rewrite (nth_error_app1 c (S :: c') H1).
       now rewrite (nth_error_app1 c c' H1).
     + apply Nat.compare_gt_iff in H1.
-      assert (n <? length c = false) by (apply Nat.ltb_nlt; Nat.order).
+      assert (n <? n0 = false) by (apply Nat.ltb_nlt; Nat.order).
       rewrite H2 in H0.
       inversion_clear H0. rewrite <- H3.
       destruct n.
       ++ apply Nat.le_0_r in H1. discriminate.
       ++ rewrite Nat.sub_1_r, <- pred_Sn.
          repeat rewrite nth_error_app2;
-           [rewrite Nat.sub_succ_l; auto| |]; omega.
-  - inversion_clear H0. apply Typ_abs, (IHt (t :: c) _ _ H H1).
+           [rewrite Nat.sub_succ_l; auto| |];
+           replace (length c) with n0 by reflexivity; omega.
+  - inversion_clear H0. apply Typ_abs, (IHt (t :: c) H _ _ H1).
   - inversion_clear H0.
     destruct H. apply (Typ_app T1); [apply IHt1|apply IHt2]; assumption.
 Qed.
@@ -385,27 +276,24 @@ Lemma preservation_under_substitution' {c c' s S t T}:
   typing (c ++ S :: c') t T -> typing (c ++ c') s S ->
   typing (c ++ c') (unshift' n 1 (subst n t (shift' n 1 s))) T.
 Proof.
-  intros n. replace n with (length c) by reflexivity. clear n.
   revert c c' s S T.
   induction t; intros c c' s S T; inversion_clear 1; intros st; simpl.
   - apply Typ_true.
   - apply Typ_false.
-  - case_eq (n =? length c); intros.
+  - case_eq (n =? n0); intros.
     + apply Nat.eqb_eq in H. subst.
-      rewrite (nth_error_app2 c (S :: c') (le_n (length c))) in H0.
-      rewrite Nat.sub_diag in H0.
+      replace n0 with (length c) in H0 by reflexivity.
+      rewrite (nth_error_app2 _ _ (le_n _)), Nat.sub_diag in H0.
       inversion H0. subst.
       now rewrite unshift_shift.
-    + refine (absent_unshift_typing _ S _);
+    + refine (@absent_intro_unshift _ _ _ S c' _ _);
         [apply Nat.eqb_neq|apply Typ_var]; assumption.
   - apply Typ_abs.
     unfold shift.
-    rewrite shift_comm; [|apply Nat.le_0_l].
-    assert (length c + 1 = length (t :: c)) by apply Nat.add_1_r.
-    rewrite H.
-    apply (IHt (t :: c) c' (shift' 0 1 s) S T2); [assumption|].
+    rewrite shift_comm; [rewrite Nat.add_1_r|apply Nat.le_0_l].
+    apply (IHt (t :: c) _ _ S T2); [assumption|].
     rewrite <- (unshift_shift s 0 1) in st.
-    refine (@absent_unshift_typing' _ [] _ S _ st t).
+    refine (@absent_elim_unshift _ [] _ _ S st t).
     apply shift_absent.
     auto.
   - apply (Typ_app T1);
@@ -419,28 +307,12 @@ Proof.
   apply (@preservation_under_substitution' []).
 Qed.
 
-Theorem preservation {c t t' T}:
-  typing c t T -> eval t t' -> typing c t' T.
+Theorem preservation {c t t'}:
+  eval t t' -> forall {T}, typing c t T -> typing c t' T.
 Proof.
-  intros typ e.
-  revert T typ.
-  induction e.
-  - intros T typ. inversion typ. subst.
-    apply (Typ_app T1); [apply (IHe _ H2) | assumption].
-  - intros T typ. inversion typ. subst.
-    apply (Typ_app T1); [now pose (IHe _ H4) | now apply IHe].
-  - intros T0 typ.
-    inversion_clear typ. inversion_clear H. inversion_clear H1.
-    + apply Typ_true.
-    + apply Typ_false.
-    + destruct n.
-      ++ inversion H. rewrite <- H2. unfold subst. simpl.
-         unfold unshift, shift.
-         now rewrite unshift_shift.
-      ++ apply Typ_var.
-         rewrite <- H. simpl. now rewrite Nat.sub_0_r.
-    + refine (preservation_under_substitution _ H0).
-      now apply Typ_abs.
-    + refine (preservation_under_substitution _ H0).
-      apply (Typ_app T2); assumption.
+  induction 1; intro T0; inversion_clear 1.
+  - apply (Typ_app T1); [apply (IHeval _ H1) | assumption].
+  - apply (Typ_app T1); [now pose (IHeval _ H2) | now apply IHeval].
+  - refine (preservation_under_substitution _ H1).
+    now inversion_clear H0.
 Qed.
