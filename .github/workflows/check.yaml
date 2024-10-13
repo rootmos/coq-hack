@@ -1,0 +1,20 @@
+name: Check
+on:
+  push:
+  schedule:
+    - cron: "0 0 7 * *"
+
+jobs:
+  check:
+    container:
+      image: "archlinux:latest"
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository code
+      uses: actions/checkout@v4
+
+    - name: Install Coq
+      run: pacman -Sy --noconfirm coq make
+
+    - name: Check proofs
+      run: make
