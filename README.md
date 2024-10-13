@@ -1,5 +1,5 @@
 # coq-hack
-[![Build Status](https://travis-ci.org/rootmos/coq-hack.svg?branch=master)](https://travis-ci.org/rootmos/coq-hack)
+[![Check](https://github.com/rootmos/coq-hack/actions/workflows/check.yaml/badge.svg)](https://github.com/rootmos/coq-hack/actions/workflows/check.yaml)
 
 A place to collect things I learn about [Coq](https://coq.inria.fr/).
 
