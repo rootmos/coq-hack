@@ -1,8 +1,12 @@
 *.vo
+*.vok
+*.vos
 *.cmi
 *.cmo
 *.glob
 CoqMakefile
+.CoqMakefile.d
 *.aux
 *.v.d
 *.conf
+.lia.cache

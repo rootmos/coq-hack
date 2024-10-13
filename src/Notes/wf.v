@@ -7,7 +7,8 @@ Require Import Hack.CMP.Fun.
 Require Hack.Notes.Process.
 Require Coq.Vectors.Fin.
 Require Import Classical.
-Require Import Omega.
+Require Import Psatz.
+Require Import PeanoNat.
 
 Definition subst X0 X := {f: X0 -> X | inj f}.
 
@@ -130,9 +131,9 @@ Proof.
     refine (Collapse_intro _ (fun t => f (s t)) (fun t => s (g t)) _).
     intros z ne. unfold s. simpl.
     induction z using Fin.caseS'.
-    - rewrite e; rewrite Nat.eqb_refl.
+    - rewrite e, PeanoNat.Nat.eqb_refl.
       -- now rewrite (proj2 (Fin.eqb_eq _ x x) eq_refl).
-      -- now apply not_eq_sym.
+      -- now rewrite PeanoNat.Nat.eqb_refl.
     - assert (Fin.eqb x z = false).
       {
         apply Bool.not_true_is_false.
@@ -220,14 +221,14 @@ Proof.
   destruct (Fin.to_nat t) as [x px].
   case (Nat.eq_dec x m).
   - intro xm.
-    assert (S n < S m) as lt' by omega.
+    assert (S n < S m) as lt' by lia.
     exists (Fin.of_nat_lt lt').
     rewrite Fin.to_nat_of_nat.
     compute.
     rewrite xm, <- eq.
     apply pf.
   - intro ne.
-    assert (S x < S m) as lt' by omega.
+    assert (S x < S m) as lt' by lia.
     exists (Fin.of_nat_lt lt').
     rewrite Fin.to_nat_of_nat.
     apply pf.

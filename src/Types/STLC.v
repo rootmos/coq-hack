@@ -2,8 +2,8 @@
 
 Require Import List.
 Import ListNotations.
-Require Import Omega.
 Require Import PeanoNat.
+Require Import Psatz.
 
 Inductive type :=
 | Ty_bool : type
@@ -164,8 +164,8 @@ Proof.
   revert j i n.
   induction t; intros; try easy; simpl.
   - case_eq (n <? j); intros;
-      [apply Nat.ltb_lt in H0 | apply Nat.ltb_ge in H0]; simpl; omega.
-  - apply IHt. omega.
+      [apply Nat.ltb_lt in H0 | apply Nat.ltb_ge in H0]; simpl; lia.
+  - apply IHt. lia.
   - split; [apply IHt1|apply IHt2]; assumption.
 Qed.
 
@@ -176,19 +176,19 @@ Proof.
   induction t; try easy; intros; simpl.
   - case_eq (n <? i); intros; simpl.
     + pose H0. apply Nat.ltb_lt in e.
-      assert (n <? k = true) by (apply Nat.ltb_lt; omega).
-      assert (n <? k + j = true) by (apply Nat.ltb_lt; omega).
+      assert (n <? k = true) by (apply Nat.ltb_lt; lia).
+      assert (n <? k + j = true) by (apply Nat.ltb_lt; lia).
       rewrite H1, H2. simpl. now rewrite H0.
     + intros. pose H0. apply Nat.ltb_ge in e.
       case_eq (n <? k).
       ++ intros. simpl. rewrite H0. apply Nat.ltb_lt in H1.
          enough (n + j <? k + j = true) by now rewrite H2.
-         apply Nat.ltb_lt. omega.
+         apply Nat.ltb_lt. lia.
       ++ intros. simpl. apply Nat.ltb_ge in H1.
-         assert (n + j <? k + j = false) by (apply Nat.ltb_ge; omega).
-         assert (n + l <? i = false) by (apply Nat.ltb_ge; omega).
-         rewrite H2, H3. f_equal. omega.
-  - f_equal. apply IHt. omega.
+         assert (n + j <? k + j = false) by (apply Nat.ltb_ge; lia).
+         assert (n + l <? i = false) by (apply Nat.ltb_ge; lia).
+         rewrite H2, H3. f_equal. lia.
+  - f_equal. apply IHt. lia.
   - f_equal; [apply IHt1|apply IHt2]; assumption.
 Qed.
 
@@ -199,7 +199,7 @@ Proof.
     case_eq (n <? c).
     + intros ltb. now rewrite ltb.
     + intros ltb. apply Nat.ltb_nlt in ltb.
-      assert (~ n + d < c) by omega.
+      assert (~ n + d < c) by lia.
       apply Nat.ltb_nlt in H.
       rewrite H.
       now rewrite Nat.add_sub.
@@ -229,8 +229,8 @@ Proof.
          assert (S :: c' = [S] ++ c') by auto.
          rewrite H2, app_assoc,
            (nth_error_app2 (c ++ [S]) c'); rewrite app_length.
-         +++ rewrite Nat.add_1_r, nth_error_app2. f_equal. omega.
-         +++ simpl. omega.
+         +++ rewrite Nat.add_1_r, nth_error_app2. f_equal. lia.
+         +++ simpl. lia.
   - apply Typ_abs. simpl in H. apply (IHt (t::c) H _ _ _ H1).
   - destruct H. apply (Typ_app T1);
       [apply (IHt1 c H S c') | apply (IHt2 c H0 S c')];
@@ -265,7 +265,7 @@ Proof.
       ++ rewrite Nat.sub_1_r, <- pred_Sn.
          repeat rewrite nth_error_app2;
            [rewrite Nat.sub_succ_l; auto| |];
-           replace (length c) with n0 by reflexivity; omega.
+           replace (length c) with n0 by reflexivity; lia.
   - inversion_clear H0. apply Typ_abs, (IHt (t :: c) H _ _ H1).
   - inversion_clear H0.
     destruct H. apply (Typ_app T1); [apply IHt1|apply IHt2]; assumption.

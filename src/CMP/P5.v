@@ -1,6 +1,6 @@
 (* https://coq-math-problems.github.io/Problem5/ *)
 Require Coq.Vectors.Fin.
-Require Import Omega.
+Require Import Psatz.
 Require Hack.CMP.Fun.
 Require Hack.CMP.Incr.
 
@@ -95,18 +95,14 @@ Proof.
   case_eq (f (i + M + 1)); case_eq (f (j + M + 1));
   try (intros u q0 v q1; now rewrite q0, q1 in p1).
   + intros.
-    assert (i + M + 1 <> j + M + 1) by omega.
+    assert (i + M + 1 <> j + M + 1) by lia.
     assert (f (i + M + 1) = f (j + M + 1)) by
       (rewrite H, H0 in *; now inversion p1).
     refine (exist _ (Aux_rep _ (existT _ _ (exist2 _ _ (j + M + 1) H1 H2))) _).
     simpl.
-    case (Nat.compare_spec i j); intro;
-      [ subst;rewrite Nat.max_id
-      | rewrite Nat.max_r by omega
-      | rewrite Nat.max_l by omega
-      ]; omega.
+    case (Compare_dec.gt_eq_gt_dec i j); lia.
   + intros. refine (exist _ (Aux_right _ _ _ (eq_sym H0)) _).
-    simpl. omega.
+    simpl. lia.
 Qed.
 
 (* Using the previous lemma we can construct a stream of AuxT:s such that
@@ -119,7 +115,7 @@ Proof.
     (proj1_sig (aux f sx 0))) as [g [_ p]].
   exists g.
   intros n m neq.
-  case (Nat.compare_spec n m); try contradiction;
+  case (Compare_dec.gt_eq_gt_dec n m); try contradiction;
   intros; exact (Incr.f_nat_incr_neq p neq).
 Qed.
 
